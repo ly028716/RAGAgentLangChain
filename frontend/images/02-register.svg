@@ -1,0 +1,43 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="600" fill="#F5F7FA"/>
+  
+  <!-- Register Card -->
+  <rect x="250" y="50" width="300" height="500" rx="8" ry="8" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  
+  <!-- Logo/Title -->
+  <text x="400" y="90" font-family="Arial" font-size="24" font-weight="bold" fill="#303133" text-anchor="middle">AI 智能助手</text>
+  <text x="400" y="120" font-family="Arial" font-size="18" fill="#606266" text-anchor="middle">用户注册</text>
+  
+  <!-- Username Input -->
+  <rect x="280" y="150" width="240" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="290" y="175" font-family="Arial" font-size="14" fill="#909399">用户名/邮箱/手机号</text>
+  
+  <!-- Code Input -->
+  <rect x="280" y="200" width="140" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="290" y="225" font-family="Arial" font-size="14" fill="#909399">验证码</text>
+  <rect x="430" y="200" width="90" height="40" rx="4" ry="4" fill="#E6A23C" fill-opacity="0.1" stroke="#E6A23C" stroke-width="1"/>
+  <text x="475" y="225" font-family="Arial" font-size="12" fill="#E6A23C" text-anchor="middle">发送验证码</text>
+  
+  <!-- Password Input -->
+  <rect x="280" y="250" width="240" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="290" y="275" font-family="Arial" font-size="14" fill="#909399">设置密码 (8位+)</text>
+  
+  <!-- Confirm Password Input -->
+  <rect x="280" y="300" width="240" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="290" y="325" font-family="Arial" font-size="14" fill="#909399">确认密码</text>
+  
+  <!-- Agreement -->
+  <rect x="280" y="355" width="14" height="14" rx="2" ry="2" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="300" y="367" font-family="Arial" font-size="12" fill="#606266">我已阅读并同意 <tspan fill="#409EFF">《用户协议》</tspan></text>
+  
+  <!-- Register Button -->
+  <rect x="280" y="390" width="240" height="40" rx="4" ry="4" fill="#409EFF"/>
+  <text x="400" y="415" font-family="Arial" font-size="16" fill="#FFFFFF" text-anchor="middle">注 册</text>
+  
+  <!-- Login Link -->
+  <text x="400" y="450" font-family="Arial" font-size="14" fill="#606266" text-anchor="middle">已有账号？ <tspan fill="#409EFF">去登录</tspan></text>
+  
+  <!-- Footer -->
+  <text x="400" y="580" font-family="Arial" font-size="12" fill="#909399" text-anchor="middle">© 2026 AI Assistant System. All rights reserved.</text>
+</svg>

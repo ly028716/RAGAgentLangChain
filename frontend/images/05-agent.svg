@@ -1,0 +1,84 @@
+<svg width="1024" height="768" xmlns="http://www.w3.org/2000/svg">
+  <!-- Layout: Sidebar -->
+  <rect x="0" y="0" width="240" height="768" fill="#303133"/>
+  <text x="20" y="40" font-family="Arial" font-size="20" font-weight="bold" fill="#FFFFFF">AI 智能助手</text>
+  
+  <!-- Sidebar Menu -->
+  <text x="50" y="98" font-family="Arial" font-size="14" fill="#C0C4CC">智能对话</text>
+  <text x="50" y="142" font-family="Arial" font-size="14" fill="#C0C4CC">知识库</text>
+  <rect x="10" y="158" width="220" height="44" rx="4" ry="4" fill="#409EFF"/>
+  <text x="50" y="186" font-family="Arial" font-size="14" fill="#FFFFFF">Agent 工具</text>
+  <text x="50" y="230" font-family="Arial" font-size="14" fill="#C0C4CC">系统设置</text>
+  
+  <!-- Layout: Header -->
+  <rect x="240" y="0" width="784" height="60" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="260" y="35" font-family="Arial" font-size="18" fill="#303133" font-weight="bold">Agent 任务执行</text>
+  <circle cx="980" cy="30" r="16" fill="#C0C4CC"/>
+  <text x="940" y="35" font-family="Arial" font-size="14" fill="#606266" text-anchor="end">User</text>
+  
+  <!-- Main Content (Two Columns) -->
+  <rect x="240" y="60" width="784" height="708" fill="#F5F7FA"/>
+  
+  <!-- Left Panel: Tools -->
+  <rect x="240" y="60" width="260" height="708" fill="#FFFFFF" stroke-right="#DCDFE6"/>
+  <rect x="250" y="70" width="240" height="36" rx="4" ry="4" fill="#F5F7FA"/>
+  <text x="260" y="93" font-family="Arial" font-size="13" fill="#C0C4CC">搜索工具...</text>
+  
+  <text x="250" y="130" font-family="Arial" font-size="12" fill="#909399" font-weight="bold">内置工具</text>
+  <rect x="250" y="140" width="240" height="40" rx="4" ry="4" fill="#FFFFFF"/>
+  <circle cx="270" cy="160" r="10" fill="#E6A23C"/>
+  <text x="290" y="165" font-family="Arial" font-size="14" fill="#303133">计算器</text>
+  <rect x="450" y="152" width="30" height="16" rx="8" ry="8" fill="#DCDFE6"/> <!-- Switch off -->
+  <circle cx="458" cy="160" r="6" fill="#FFFFFF"/>
+  
+  <rect x="250" y="185" width="240" height="40" rx="4" ry="4" fill="#FFFFFF"/>
+  <circle cx="270" cy="205" r="10" fill="#409EFF"/>
+  <text x="290" y="210" font-family="Arial" font-size="14" fill="#303133">Google 搜索</text>
+  <rect x="450" y="197" width="30" height="16" rx="8" ry="8" fill="#13CE66"/> <!-- Switch on -->
+  <circle cx="472" cy="205" r="6" fill="#FFFFFF"/>
+  
+  <text x="250" y="250" font-family="Arial" font-size="12" fill="#909399" font-weight="bold">自定义工具</text>
+  <rect x="250" y="260" width="240" height="40" rx="4" ry="4" fill="#ECF5FF"/>
+  <circle cx="270" cy="280" r="10" fill="#909399"/>
+  <text x="290" y="285" font-family="Arial" font-size="14" fill="#303133">天气查询 API</text>
+  <rect x="450" y="272" width="30" height="16" rx="8" ry="8" fill="#13CE66"/>
+  <circle cx="472" cy="280" r="6" fill="#FFFFFF"/>
+  
+  <rect x="250" y="310" width="240" height="36" rx="4" ry="4" stroke="#DCDFE6" stroke-dasharray="4"/>
+  <text x="370" y="333" font-family="Arial" font-size="13" fill="#909399" text-anchor="middle">+ 新建工具</text>
+  
+  <!-- Right Panel: Execution -->
+  <text x="520" y="90" font-family="Arial" font-size="16" font-weight="bold" fill="#303133">任务执行</text>
+  
+  <rect x="520" y="110" width="480" height="80" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="530" y="135" font-family="Arial" font-size="14" fill="#303133">查询北京明天的天气，并计算平均温度是否适合户外运动。</text>
+  
+  <rect x="520" y="200" width="80" height="32" rx="4" ry="4" fill="#409EFF"/>
+  <text x="560" y="221" font-family="Arial" font-size="14" fill="#FFFFFF" text-anchor="middle">执行</text>
+  
+  <!-- Execution Timeline -->
+  <line x1="540" y1="260" x2="540" y2="500" stroke="#E4E7ED" stroke-width="2"/>
+  
+  <!-- Step 1 -->
+  <circle cx="540" cy="260" r="6" fill="#409EFF"/>
+  <text x="560" y="265" font-family="Arial" font-size="14" font-weight="bold" fill="#303133">Thought</text>
+  <text x="560" y="285" font-family="Arial" font-size="13" fill="#606266">首先需要查询北京明天的天气情况。</text>
+  
+  <!-- Step 2 -->
+  <circle cx="540" cy="320" r="6" fill="#E6A23C"/>
+  <text x="560" y="325" font-family="Arial" font-size="14" font-weight="bold" fill="#303133">Action: 天气查询 API</text>
+  <rect x="560" y="335" width="400" height="40" rx="4" ry="4" fill="#FDF6EC"/>
+  <text x="570" y="360" font-family="monospace" font-size="12" fill="#E6A23C">Input: {"city": "Beijing", "date": "tomorrow"}</text>
+  
+  <!-- Step 3 -->
+  <circle cx="540" cy="400" r="6" fill="#67C23A"/>
+  <text x="560" y="405" font-family="Arial" font-size="14" font-weight="bold" fill="#303133">Observation</text>
+  <rect x="560" y="415" width="400" height="40" rx="4" ry="4" fill="#F0F9EB"/>
+  <text x="570" y="440" font-family="monospace" font-size="12" fill="#67C23A">Output: {"temp_high": 25, "temp_low": 15, "weather": "Sunny"}</text>
+  
+  <!-- Step 4 (Final Answer) -->
+  <circle cx="540" cy="480" r="6" fill="#409EFF"/>
+  <text x="560" y="485" font-family="Arial" font-size="14" font-weight="bold" fill="#303133">Final Answer</text>
+  <rect x="560" y="495" width="440" height="60" rx="4" ry="4" fill="#ECF5FF"/>
+  <text x="570" y="520" font-family="Arial" font-size="13" fill="#303133">北京明天晴天，气温15-25度，平均20度，非常适合户外运动。</text>
+</svg>

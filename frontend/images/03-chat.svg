@@ -1,0 +1,78 @@
+<svg width="1024" height="768" xmlns="http://www.w3.org/2000/svg">
+  <!-- Layout: Sidebar -->
+  <rect x="0" y="0" width="240" height="768" fill="#303133"/>
+  <text x="20" y="40" font-family="Arial" font-size="20" font-weight="bold" fill="#FFFFFF">AI 智能助手</text>
+  
+  <!-- Sidebar Menu -->
+  <rect x="10" y="70" width="220" height="44" rx="4" ry="4" fill="#409EFF"/>
+  <text x="50" y="98" font-family="Arial" font-size="14" fill="#FFFFFF">智能对话</text>
+  <text x="50" y="142" font-family="Arial" font-size="14" fill="#C0C4CC">知识库</text>
+  <text x="50" y="186" font-family="Arial" font-size="14" fill="#C0C4CC">Agent 工具</text>
+  <text x="50" y="230" font-family="Arial" font-size="14" fill="#C0C4CC">系统设置</text>
+  
+  <!-- Sidebar Conversation List -->
+  <text x="20" y="280" font-family="Arial" font-size="12" fill="#909399">对话列表</text>
+  <text x="30" y="310" font-family="Arial" font-size="13" fill="#E4E7ED">新的对话</text>
+  <text x="30" y="345" font-family="Arial" font-size="13" fill="#C0C4CC">关于RAG的...</text>
+  <text x="30" y="380" font-family="Arial" font-size="13" fill="#C0C4CC">周报生成...</text>
+  
+  <!-- Layout: Header -->
+  <rect x="240" y="0" width="784" height="60" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="260" y="35" font-family="Arial" font-size="18" fill="#303133" font-weight="bold">智能对话</text>
+  <circle cx="980" cy="30" r="16" fill="#C0C4CC"/>
+  <text x="940" y="35" font-family="Arial" font-size="14" fill="#606266" text-anchor="end">User</text>
+  
+  <!-- Layout: Main Content (Chat Area) -->
+  <rect x="240" y="60" width="584" height="708" fill="#F5F7FA"/>
+  
+  <!-- Messages -->
+  <!-- AI Message -->
+  <rect x="260" y="90" width="40" height="40" rx="20" ry="20" fill="#409EFF"/>
+  <text x="280" y="115" font-family="Arial" font-size="12" fill="#FFFFFF" text-anchor="middle">AI</text>
+  <path d="M 310 90 L 600 90 A 8 8 0 0 1 608 98 L 608 142 A 8 8 0 0 1 600 150 L 318 150 A 8 8 0 0 1 310 142 Z" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="325" y="115" font-family="Arial" font-size="14" fill="#606266">你好！我是 AI 智能助手，有什么可以帮你的吗？</text>
+  
+  <!-- User Message -->
+  <rect x="764" y="180" width="40" height="40" rx="20" ry="20" fill="#909399"/>
+  <text x="784" y="205" font-family="Arial" font-size="12" fill="#FFFFFF" text-anchor="middle">Me</text>
+  <path d="M 754 180 L 464 180 A 8 8 0 0 0 456 188 L 456 222 A 8 8 0 0 0 464 230 L 746 230 A 8 8 0 0 0 754 222 Z" fill="#95D475" stroke="#95D475" stroke-width="1"/>
+  <text x="475" y="205" font-family="Arial" font-size="14" fill="#303133">请帮我写一份 Python 冒泡排序代码。</text>
+  
+  <!-- AI Streaming Message -->
+  <rect x="260" y="260" width="40" height="40" rx="20" ry="20" fill="#409EFF"/>
+  <text x="280" y="285" font-family="Arial" font-size="12" fill="#FFFFFF" text-anchor="middle">AI</text>
+  <path d="M 310 260 L 650 260 A 8 8 0 0 1 658 268 L 658 360 A 8 8 0 0 1 650 368 L 318 368 A 8 8 0 0 1 310 360 Z" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="325" y="285" font-family="Arial" font-size="14" fill="#606266">好的，这是冒泡排序的 Python 实现：</text>
+  <rect x="325" y="300" width="300" height="50" fill="#F2F3F5" rx="4" ry="4"/>
+  <text x="335" y="320" font-family="monospace" font-size="12" fill="#303133">def bubble_sort(arr):</text>
+  <text x="335" y="340" font-family="monospace" font-size="12" fill="#303133">    n = len(arr)...</text>
+  <rect x="630" y="350" width="8" height="14" fill="#303133">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Input Area -->
+  <rect x="240" y="668" width="584" height="100" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <rect x="260" y="680" width="544" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="270" y="705" font-family="Arial" font-size="14" fill="#C0C4CC">请输入您的问题...</text>
+  <rect x="730" y="680" width="70" height="40" rx="4" ry="4" fill="#F56C6C"/>
+  <text x="765" y="705" font-family="Arial" font-size="14" fill="#FFFFFF" text-anchor="middle">停止</text>
+  
+  <!-- Right Panel: Config -->
+  <rect x="824" y="60" width="200" height="708" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="840" y="90" font-family="Arial" font-size="14" font-weight="bold" fill="#303133">对话配置</text>
+  
+  <text x="840" y="130" font-family="Arial" font-size="12" fill="#606266">模型温度 (Temperature)</text>
+  <rect x="840" y="145" width="160" height="4" rx="2" ry="2" fill="#E4E7ED"/>
+  <circle cx="920" cy="147" r="6" fill="#409EFF"/>
+  <text x="980" y="130" font-family="Arial" font-size="12" fill="#909399">0.7</text>
+  
+  <text x="840" y="180" font-family="Arial" font-size="12" fill="#606266">最大长度 (Max Tokens)</text>
+  <rect x="840" y="195" width="160" height="4" rx="2" ry="2" fill="#E4E7ED"/>
+  <circle cx="900" cy="197" r="6" fill="#409EFF"/>
+  <text x="980" y="180" font-family="Arial" font-size="12" fill="#909399">2000</text>
+  
+  <text x="840" y="230" font-family="Arial" font-size="12" fill="#606266">对话模式</text>
+  <rect x="840" y="245" width="160" height="30" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="850" y="265" font-family="Arial" font-size="12" fill="#303133">普通模式</text>
+  <path d="M 980 260 L 985 265 L 990 260" stroke="#C0C4CC" fill="none"/>
+</svg>

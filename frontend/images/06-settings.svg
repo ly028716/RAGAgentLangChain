@@ -1,0 +1,62 @@
+<svg width="1024" height="768" xmlns="http://www.w3.org/2000/svg">
+  <!-- Layout: Sidebar -->
+  <rect x="0" y="0" width="240" height="768" fill="#303133"/>
+  <text x="20" y="40" font-family="Arial" font-size="20" font-weight="bold" fill="#FFFFFF">AI 智能助手</text>
+  
+  <!-- Sidebar Menu -->
+  <text x="50" y="98" font-family="Arial" font-size="14" fill="#C0C4CC">智能对话</text>
+  <text x="50" y="142" font-family="Arial" font-size="14" fill="#C0C4CC">知识库</text>
+  <text x="50" y="186" font-family="Arial" font-size="14" fill="#C0C4CC">Agent 工具</text>
+  <rect x="10" y="202" width="220" height="44" rx="4" ry="4" fill="#409EFF"/>
+  <text x="50" y="230" font-family="Arial" font-size="14" fill="#FFFFFF">系统设置</text>
+  
+  <!-- Layout: Header -->
+  <rect x="240" y="0" width="784" height="60" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="260" y="35" font-family="Arial" font-size="18" fill="#303133" font-weight="bold">系统设置</text>
+  <circle cx="980" cy="30" r="16" fill="#C0C4CC"/>
+  <text x="940" y="35" font-family="Arial" font-size="14" fill="#606266" text-anchor="end">User</text>
+  
+  <!-- Main Content -->
+  <rect x="240" y="60" width="784" height="708" fill="#F5F7FA"/>
+  
+  <!-- Tabs -->
+  <rect x="260" y="80" width="744" height="40" fill="#FFFFFF" stroke-bottom="#DCDFE6"/>
+  <text x="280" y="105" font-family="Arial" font-size="14" fill="#409EFF" font-weight="bold">账号设置</text>
+  <rect x="280" y="118" width="60" height="2" fill="#409EFF"/>
+  <text x="360" y="105" font-family="Arial" font-size="14" fill="#606266">模型与密钥</text>
+  <text x="460" y="105" font-family="Arial" font-size="14" fill="#606266">向量库配置</text>
+  <text x="560" y="105" font-family="Arial" font-size="14" fill="#606266">缓存与限流</text>
+  <text x="660" y="105" font-family="Arial" font-size="14" fill="#606266">统计与健康</text>
+  
+  <!-- Tab Content: Account -->
+  <rect x="260" y="140" width="744" height="500" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  
+  <text x="300" y="180" font-family="Arial" font-size="16" font-weight="bold" fill="#303133">基本信息</text>
+  
+  <text x="300" y="220" font-family="Arial" font-size="14" fill="#606266">头像</text>
+  <circle cx="400" cy="220" r="24" fill="#C0C4CC"/>
+  <rect x="440" y="208" width="80" height="24" rx="4" ry="4" stroke="#DCDFE6" fill="#FFFFFF"/>
+  <text x="480" y="224" font-family="Arial" font-size="12" fill="#606266" text-anchor="middle">更换头像</text>
+  
+  <text x="300" y="280" font-family="Arial" font-size="14" fill="#606266">昵称</text>
+  <rect x="400" y="260" width="240" height="36" rx="4" ry="4" stroke="#DCDFE6" fill="#FFFFFF"/>
+  <text x="410" y="283" font-family="Arial" font-size="14" fill="#303133">Admin User</text>
+  
+  <text x="300" y="340" font-family="Arial" font-size="14" fill="#606266">邮箱</text>
+  <text x="400" y="340" font-family="Arial" font-size="14" fill="#909399">admin@example.com (不可修改)</text>
+  
+  <line x1="300" y1="380" x2="960" y2="380" stroke="#E4E7ED"/>
+  
+  <text x="300" y="420" font-family="Arial" font-size="16" font-weight="bold" fill="#303133">安全设置</text>
+  
+  <text x="300" y="460" font-family="Arial" font-size="14" fill="#606266">登录密码</text>
+  <rect x="400" y="448" width="80" height="24" rx="4" ry="4" stroke="#DCDFE6" fill="#FFFFFF"/>
+  <text x="440" y="464" font-family="Arial" font-size="12" fill="#606266" text-anchor="middle">修改密码</text>
+  
+  <text x="300" y="520" font-family="Arial" font-size="14" fill="#606266">账号注销</text>
+  <text x="400" y="520" font-family="Arial" font-size="14" fill="#F56C6C">注销账号 (慎重操作)</text>
+  
+  <!-- Save Button -->
+  <rect x="300" y="580" width="80" height="32" rx="4" ry="4" fill="#409EFF"/>
+  <text x="340" y="600" font-family="Arial" font-size="14" fill="#FFFFFF" text-anchor="middle">保存修改</text>
+</svg>

@@ -1,0 +1,36 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="600" fill="#F5F7FA"/>
+  
+  <!-- Login Card -->
+  <rect x="250" y="100" width="300" height="400" rx="8" ry="8" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  
+  <!-- Logo/Title -->
+  <text x="400" y="150" font-family="Arial" font-size="24" font-weight="bold" fill="#303133" text-anchor="middle">AI 智能助手</text>
+  <text x="400" y="180" font-family="Arial" font-size="18" fill="#606266" text-anchor="middle">用户登录</text>
+  
+  <!-- Username Input -->
+  <rect x="280" y="210" width="240" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="290" y="235" font-family="Arial" font-size="14" fill="#909399">账号/邮箱/手机号</text>
+  
+  <!-- Password Input -->
+  <rect x="280" y="270" width="240" height="40" rx="4" ry="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="290" y="295" font-family="Arial" font-size="14" fill="#909399">密码</text>
+  <!-- Eye Icon Placeholder -->
+  <circle cx="500" cy="290" r="8" fill="#C0C4CC"/>
+  
+  <!-- Remember Me & Forgot Password -->
+  <rect x="280" y="325" width="14" height="14" rx="2" ry="2" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="300" y="337" font-family="Arial" font-size="12" fill="#606266">记住我</text>
+  <text x="480" y="337" font-family="Arial" font-size="12" fill="#409EFF" text-anchor="end">忘记密码?</text>
+  
+  <!-- Login Button -->
+  <rect x="280" y="360" width="240" height="40" rx="4" ry="4" fill="#409EFF"/>
+  <text x="400" y="385" font-family="Arial" font-size="16" fill="#FFFFFF" text-anchor="middle">登 录</text>
+  
+  <!-- Register Link -->
+  <text x="400" y="420" font-family="Arial" font-size="14" fill="#606266" text-anchor="middle">还没有账号？ <tspan fill="#409EFF">去注册</tspan></text>
+  
+  <!-- Footer -->
+  <text x="400" y="580" font-family="Arial" font-size="12" fill="#909399" text-anchor="middle">© 2026 AI Assistant System. All rights reserved.</text>
+</svg>
