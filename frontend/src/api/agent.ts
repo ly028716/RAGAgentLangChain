@@ -8,6 +8,9 @@ import type {
   ExecutionListItem,
   PaginatedList
 } from '@/types'
+import { storage } from '@/utils/storage'
+import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 
 export const agentApi = {
   // 工具管理
@@ -44,50 +47,76 @@ export const agentApi = {
     onComplete?: () => void
   ): () => void {
     const controller = new AbortController()
+    const authStore = useAuthStore()
     
-    fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/agent/execute/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-      },
-      body: JSON.stringify(data),
-      signal: controller.signal
-    }).then(async response => {
-      // 检查响应状态
+    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+    const url = `${baseURL}/agent/execute/stream`
+
+    async function doFetch(): Promise<Response> {
+      const token = storage.getToken()
+      const headers = new Headers()
+      headers.set('Content-Type', 'application/json')
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`)
+      }
+      return fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+        signal: controller.signal
+      })
+    }
+
+    async function fetchWithRefresh(): Promise<Response> {
+      let response = await doFetch()
+      if (response.status !== 401) return response
+
+      const ok = await authStore.refreshTokenAction()
+      if (!ok) {
+        authStore.clearAuth()
+        router.push('/login')
+        return response
+      }
+      response = await doFetch()
+      return response
+    }
+
+    fetchWithRefresh().then(async response => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }))
         throw new Error(errorData.detail || `请求失败: ${response.status}`)
       }
-      
+
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
-      
+
       if (!reader) {
         throw new Error('无法读取响应流')
       }
-      
+
+      let buffer = ''
       try {
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          
-          const text = decoder.decode(value, { stream: true })
-          const lines = text.split('\n')
-          
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6).trim()
-              if (data === '[DONE]') {
-                onComplete?.()
-                return
-              }
-              try {
-                const event = JSON.parse(data)
-                onMessage(event)
-              } catch {
-                // 忽略解析错误
-              }
+            if (!line.startsWith('data: ')) continue
+            const payload = line.slice(6).trim()
+            if (!payload) continue
+            if (payload === '[DONE]') {
+              onComplete?.()
+              return
+            }
+            try {
+              const event = JSON.parse(payload)
+              onMessage(event)
+            } catch {
+              continue
             }
           }
         }
@@ -96,8 +125,10 @@ export const agentApi = {
         reader.releaseLock()
       }
     }).catch(error => {
-      if (error.name !== 'AbortError') {
+      if (error?.name !== 'AbortError') {
         onError?.(error)
+      } else {
+        onComplete?.()
       }
     })
     

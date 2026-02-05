@@ -90,13 +90,11 @@ describe('Auth Store', () => {
       expect(storage.setRefreshToken).toHaveBeenCalledWith('new-refresh-token')
     })
 
-    it('登录失败应返回 false', async () => {
+    it('登录失败应抛出错误', async () => {
       vi.mocked(authApi.login).mockRejectedValue(new Error('Invalid credentials'))
       
       const store = useAuthStore()
-      const result = await store.login('testuser', 'wrongpassword')
-      
-      expect(result).toBe(false)
+      await expect(store.login('testuser', 'wrongpassword')).rejects.toThrow('Invalid credentials')
     })
 
     it('登录成功后应获取用户信息', async () => {
@@ -132,13 +130,11 @@ describe('Auth Store', () => {
       })
     })
 
-    it('注册失败应返回 false', async () => {
+    it('注册失败应抛出错误', async () => {
       vi.mocked(authApi.register).mockRejectedValue(new Error('Username exists'))
       
       const store = useAuthStore()
-      const result = await store.register('existinguser', 'password123')
-      
-      expect(result).toBe(false)
+      await expect(store.register('existinguser', 'password123')).rejects.toThrow('Username exists')
     })
   })
 

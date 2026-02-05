@@ -62,7 +62,7 @@ const deleting = ref(false)
 
 const avatarUrl = computed({
   get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val)
+  set: (val: string | null | undefined) => emit('update:modelValue', val ?? null)
 })
 
 const beforeUpload = (file: File) => {

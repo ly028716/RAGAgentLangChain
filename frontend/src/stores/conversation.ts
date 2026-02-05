@@ -11,6 +11,7 @@ export const useConversationStore = defineStore('conversation', () => {
   const isLoading = ref(false)
   const isStreaming = ref(false)
   const streamingContent = ref('')
+  const streamingSources = ref<any[]>([])
   const totalConversations = ref(0)
 
   // Getters
@@ -36,7 +37,10 @@ export const useConversationStore = defineStore('conversation', () => {
       }
       totalConversations.value = response.total
     } catch (error) {
-      console.error('获取对话列表失败:', error)
+      const status = (error as { response?: { status?: number } })?.response?.status
+      if (status !== 401) {
+        console.error('获取对话列表失败:', error)
+      }
     } finally {
       isLoading.value = false
     }
@@ -116,10 +120,15 @@ export const useConversationStore = defineStore('conversation', () => {
   function startStreaming() {
     isStreaming.value = true
     streamingContent.value = ''
+    streamingSources.value = []
   }
 
   function appendStreamContent(content: string) {
     streamingContent.value += content
+  }
+
+  function setStreamSources(sources: any[]) {
+    streamingSources.value = sources
   }
 
   function finalizeStreamMessage() {
@@ -128,16 +137,19 @@ export const useConversationStore = defineStore('conversation', () => {
         id: Date.now(),
         role: 'assistant',
         content: streamingContent.value,
+        sources: streamingSources.value.length > 0 ? streamingSources.value : undefined,
         created_at: new Date().toISOString()
       })
     }
     streamingContent.value = ''
+    streamingSources.value = []
     isStreaming.value = false
   }
 
   function clearMessages() {
     messages.value = []
     streamingContent.value = ''
+    streamingSources.value = []
     isStreaming.value = false
   }
 
@@ -148,6 +160,7 @@ export const useConversationStore = defineStore('conversation', () => {
     isLoading,
     isStreaming,
     streamingContent,
+    streamingSources,
     totalConversations,
     currentConversation,
     sortedConversations,
@@ -160,6 +173,7 @@ export const useConversationStore = defineStore('conversation', () => {
     addUserMessage,
     startStreaming,
     appendStreamContent,
+    setStreamSources,
     finalizeStreamMessage,
     clearMessages
   }

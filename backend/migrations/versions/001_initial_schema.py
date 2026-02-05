@@ -83,7 +83,7 @@ def upgrade() -> None:
         'messages',
         sa.Column('id', sa.Integer(), nullable=False, comment='消息ID'),
         sa.Column('conversation_id', sa.Integer(), nullable=False, comment='对话ID'),
-        sa.Column('role', sa.Enum('user', 'assistant', 'system', name='messagerole'), nullable=False, comment='消息角色'),
+        sa.Column('role', sa.Enum('USER', 'ASSISTANT', 'SYSTEM', name='messagerole'), nullable=False, comment='消息角色'),
         sa.Column('content', sa.Text(), nullable=False, comment='消息内容'),
         sa.Column('tokens', sa.Integer(), nullable=False, default=0, comment='消耗的token数量'),
         sa.Column('created_at', sa.DateTime(), nullable=False, comment='创建时间'),

@@ -15,18 +15,32 @@ RAG查询链模块
 """
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from langchain.memory import ConversationBufferMemory
-from langchain_core.documents import Document
 from langchain.prompts import PromptTemplate
+from langchain_core.documents import Document
 
 from app.config import settings
-from app.core.llm import get_llm, get_streaming_llm, TongyiLLM
-from app.core.vector_store import get_vector_store_manager, VectorStoreManager
+from app.core.llm import TongyiLLM, get_llm, get_streaming_llm
+from app.core.vector_store import VectorStoreManager, get_vector_store_manager
 
 logger = logging.getLogger(__name__)
+
+def _distance_to_similarity(distance: Any) -> float:
+    if distance is None:
+        return 0.0
+    try:
+        d = float(distance)
+    except (TypeError, ValueError):
+        return 0.0
+    if d < 0:
+        return 0.0
+    if d <= 2.0:
+        return max(0.0, min(1.0, 1.0 - (d / 2.0)))
+    return 1.0 / (1.0 + math.sqrt(d))
 
 
 # RAG提示模板
@@ -63,12 +77,13 @@ RAG_CONVERSATION_TEMPLATE = """你是一个智能问答助手。请根据以下�
 @dataclass
 class DocumentChunk:
     """文档片段数据类"""
+
     content: str
     document_name: str
     similarity_score: float
     document_id: Optional[int] = None
     chunk_index: Optional[int] = None
-    
+
     def to_dict(self) -> dict:
         return {
             "content": self.content,
@@ -82,10 +97,11 @@ class DocumentChunk:
 @dataclass
 class RAGResponse:
     """RAG响应数据类"""
+
     answer: str
     sources: List[DocumentChunk]
     tokens_used: int
-    
+
     def to_dict(self) -> dict:
         return {
             "answer": self.answer,
@@ -97,30 +113,30 @@ class RAGResponse:
 class RAGManager:
     """
     RAG管理器类
-    
+
     实现检索增强生成功能，支持：
     - 单知识库查询
     - 多知识库联合查询
     - 带对话历史的查询
     - 流式响应
-    
+
     使用方式:
         manager = RAGManager()
-        
+
         # 单知识库查询
         response = await manager.query(
             knowledge_base_ids=[1],
             question="什么是Python？",
             top_k=5
         )
-        
+
         # 多知识库联合查询
         response = await manager.query(
             knowledge_base_ids=[1, 2, 3],
             question="什么是Python？",
             top_k=5
         )
-        
+
         # 流式查询
         async for chunk in manager.stream_query(
             knowledge_base_ids=[1],
@@ -128,7 +144,7 @@ class RAGManager:
         ):
             print(chunk)
     """
-    
+
     def __init__(
         self,
         vector_store_manager: Optional[VectorStoreManager] = None,
@@ -136,45 +152,45 @@ class RAGManager:
     ):
         """
         初始化RAG管理器
-        
+
         Args:
             vector_store_manager: 向量存储管理器，默认使用全局实例
             llm: LLM实例，默认使用全局实例
         """
         self.vector_store_manager = vector_store_manager or get_vector_store_manager()
         self._llm = llm
-        
+
         # 对话记忆存储
         self._memories: Dict[str, ConversationBufferMemory] = {}
-        
+
         # 提示模板
         self._prompt_template = PromptTemplate(
             input_variables=["context", "question"],
             template=RAG_PROMPT_TEMPLATE,
         )
-        
+
         self._conversation_template = PromptTemplate(
             input_variables=["context", "chat_history", "question"],
             template=RAG_CONVERSATION_TEMPLATE,
         )
-    
+
     def _get_llm(self, streaming: bool = False) -> TongyiLLM:
         """
         获取LLM实例
-        
+
         Args:
             streaming: 是否流式输出
-        
+
         Returns:
             TongyiLLM: LLM实例
         """
         if self._llm is not None:
             return self._llm
-        
+
         if streaming:
             return get_streaming_llm()
         return get_llm()
-    
+
     async def query(
         self,
         knowledge_base_ids: List[int],
@@ -185,17 +201,17 @@ class RAGManager:
     ) -> RAGResponse:
         """
         执行RAG查询
-        
+
         Args:
             knowledge_base_ids: 知识库ID列表
             question: 用户问题
             top_k: 检索文档数量，默认从配置读取
             conversation_id: 对话ID（用于维护对话历史）
             chat_history: 对话历史列表
-        
+
         Returns:
             RAGResponse: RAG响应对象
-        
+
         需求引用:
             - 需求4.1: 将查询文本向量化并在向量数据库中检索相似度最高的前5个文档片段
             - 需求4.2: 将检索到的文档片段作为上下文传递给通义千问模型生成答案
@@ -204,24 +220,24 @@ class RAGManager:
         """
         if top_k is None:
             top_k = settings.rag.rag_top_k
-        
+
         logger.info(
             f"执行RAG查询: kb_ids={knowledge_base_ids}, "
             f"question长度={len(question)}, top_k={top_k}"
         )
-        
+
         # 步骤1: 向量检索
         retrieved_docs = await self._retrieve_documents(
             knowledge_base_ids=knowledge_base_ids,
             question=question,
             top_k=top_k,
         )
-        
+
         logger.debug(f"检索到 {len(retrieved_docs)} 个文档片段")
-        
+
         # 步骤2: 构建上下文
         context = self._build_context(retrieved_docs)
-        
+
         # 步骤3: 构建提示
         if chat_history or conversation_id:
             history_str = self._format_chat_history(chat_history, conversation_id)
@@ -235,29 +251,29 @@ class RAGManager:
                 context=context,
                 question=question,
             )
-        
+
         # 步骤4: 调用LLM生成答案
         llm = self._get_llm(streaming=False)
         answer = await llm.llm.ainvoke(prompt)
-        
+
         # 步骤5: 估算token数量
         tokens_used = self._estimate_tokens(prompt + answer)
-        
+
         # 步骤6: 更新对话历史
         if conversation_id:
             self._update_memory(conversation_id, question, answer)
-        
+
         logger.info(
             f"RAG查询完成: answer长度={len(answer)}, "
             f"sources={len(retrieved_docs)}, tokens≈{tokens_used}"
         )
-        
+
         return RAGResponse(
             answer=answer,
             sources=retrieved_docs,
             tokens_used=tokens_used,
         )
-    
+
     async def stream_query(
         self,
         knowledge_base_ids: List[int],
@@ -268,14 +284,14 @@ class RAGManager:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         流式执行RAG查询
-        
+
         Args:
             knowledge_base_ids: 知识库ID列表
             question: 用户问题
             top_k: 检索文档数量
             conversation_id: 对话ID
             chat_history: 对话历史列表
-        
+
         Yields:
             Dict[str, Any]: 流式响应数据
                 - type: "sources" | "token" | "done" | "error"
@@ -285,12 +301,12 @@ class RAGManager:
         """
         if top_k is None:
             top_k = settings.rag.rag_top_k
-        
+
         logger.info(
             f"执行流式RAG查询: kb_ids={knowledge_base_ids}, "
             f"question长度={len(question)}, top_k={top_k}"
         )
-        
+
         try:
             # 步骤1: 向量检索
             retrieved_docs = await self._retrieve_documents(
@@ -298,16 +314,23 @@ class RAGManager:
                 question=question,
                 top_k=top_k,
             )
-            
-            # 先返回检索到的文档片段
+
+            # 去重：按文档名称去重，保留相似度最高的chunk
+            unique_sources = {}
+            for doc in retrieved_docs:
+                doc_name = doc.document_name
+                if doc_name not in unique_sources or doc.similarity_score > unique_sources[doc_name].similarity_score:
+                    unique_sources[doc_name] = doc
+
+            # 先返回检索到的文档片段（已去重）
             yield {
                 "type": "sources",
-                "sources": [doc.to_dict() for doc in retrieved_docs],
+                "sources": [doc.to_dict() for doc in unique_sources.values()],
             }
-            
+
             # 步骤2: 构建上下文和提示
             context = self._build_context(retrieved_docs)
-            
+
             if chat_history or conversation_id:
                 history_str = self._format_chat_history(chat_history, conversation_id)
                 prompt = self._conversation_template.format(
@@ -320,43 +343,72 @@ class RAGManager:
                     context=context,
                     question=question,
                 )
-            
+
             # 步骤3: 流式调用LLM
             llm = self._get_llm(streaming=True)
             full_answer = ""
-            
-            async for chunk in llm.llm.astream(prompt):
-                full_answer += chunk
+
+            try:
+                async for chunk in llm.llm.astream(prompt):
+                    if hasattr(chunk, "content"):
+                        content = chunk.content
+                    else:
+                        content = str(chunk)
+
+                    full_answer += content
+                    yield {
+                        "type": "token",
+                        "content": content,
+                    }
+            except Exception as stream_err:
+                logger.error(f"LLM流式生成中断: {str(stream_err)}", exc_info=True)
+
+                # 先发送错误事件给前端
                 yield {
-                    "type": "token",
-                    "content": chunk,
+                    "type": "error",
+                    "error": f"LLM生成失败: {str(stream_err)}",
                 }
-            
+
+                # 如果已经生成了部分内容，继续后续流程
+                if not full_answer:
+                    return  # 直接返回，不再继续
+
             # 步骤4: 估算token数量
-            tokens_used = self._estimate_tokens(prompt + full_answer)
-            
+            # Note: _estimate_tokens 内部实现很简单，不会抛出 "Additional kwargs key output_tokens already exists" 错误
+            # 这个错误通常来自 Pydantic 模型验证或 LangChain 内部。
+            # 如果是 full_answer 拼接导致的问题，前面的循环应该会报错。
+            # 这里最可疑的是 self._estimate_tokens 的调用或 yield 语句。
+            # 让我们尝试捕获这个特定步骤的异常
+            try:
+                tokens_used = self._estimate_tokens(prompt + full_answer)
+            except Exception as token_err:
+                logger.warning(f"Token估算失败: {str(token_err)}")
+                tokens_used = len(full_answer) # 降级策略
+
             # 步骤5: 更新对话历史
             if conversation_id:
-                self._update_memory(conversation_id, question, full_answer)
-            
+                try:
+                    self._update_memory(conversation_id, question, full_answer)
+                except Exception as mem_err:
+                    logger.warning(f"更新对话历史失败: {str(mem_err)}")
+
             yield {
                 "type": "done",
                 "content": full_answer,
                 "tokens_used": tokens_used,
             }
-            
+
             logger.info(
-                f"流式RAG查询完成: answer长度={len(full_answer)}, "
-                f"tokens≈{tokens_used}"
+                f"流式RAG查询完成: answer长度={len(full_answer)}, " f"tokens≈{tokens_used}"
             )
-            
+
         except Exception as e:
             logger.error(f"流式RAG查询失败: {str(e)}")
             yield {
                 "type": "error",
                 "error": str(e),
             }
-    
+
     async def _retrieve_documents(
         self,
         knowledge_base_ids: List[int],
@@ -365,12 +417,12 @@ class RAGManager:
     ) -> List[DocumentChunk]:
         """
         从向量数据库检索相关文档
-        
+
         Args:
             knowledge_base_ids: 知识库ID列表
             question: 查询问题
             top_k: 返回文档数量
-        
+
         Returns:
             List[DocumentChunk]: 文档片段列表
         """
@@ -388,47 +440,44 @@ class RAGManager:
                 query=question,
                 k=top_k,
             )
-        
+
         # 转换为DocumentChunk对象
         chunks = []
         for doc, score in results:
-            # Chroma返回的是距离，需要转换为相似度
-            # 距离越小越相似，这里简单转换
-            similarity = 1.0 / (1.0 + score) if score >= 0 else 0.0
-            
+            similarity = _distance_to_similarity(score)
+
             chunk = DocumentChunk(
                 content=doc.page_content,
                 document_name=doc.metadata.get("source", "Unknown"),
-                similarity_score=round(similarity, 4),
+                similarity_score=round(similarity, 6),
                 document_id=doc.metadata.get("document_id"),
                 chunk_index=doc.metadata.get("chunk_index"),
             )
             chunks.append(chunk)
-        
+
         return chunks
-    
+
     def _build_context(self, documents: List[DocumentChunk]) -> str:
         """
         构建上下文文本
-        
+
         Args:
             documents: 文档片段列表
-        
+
         Returns:
             str: 格式化的上下文文本
         """
         if not documents:
             return "没有找到相关的参考资料。"
-        
+
         context_parts = []
         for i, doc in enumerate(documents, 1):
             context_parts.append(
-                f"[{i}] 来源: {doc.document_name}\n"
-                f"内容: {doc.content}\n"
+                f"[{i}] 来源: {doc.document_name}\n" f"内容: {doc.content}\n"
             )
-        
+
         return "\n".join(context_parts)
-    
+
     def _format_chat_history(
         self,
         chat_history: Optional[List[Dict[str, str]]],
@@ -436,16 +485,16 @@ class RAGManager:
     ) -> str:
         """
         格式化对话历史
-        
+
         Args:
             chat_history: 对话历史列表
             conversation_id: 对话ID
-        
+
         Returns:
             str: 格式化的对话历史文本
         """
         history_parts = []
-        
+
         # 从传入的历史中获取
         if chat_history:
             for msg in chat_history[-10:]:  # 只保留最近10条
@@ -455,7 +504,7 @@ class RAGManager:
                     history_parts.append(f"用户: {content}")
                 elif role == "ASSISTANT":
                     history_parts.append(f"助手: {content}")
-        
+
         # 从记忆中获取
         elif conversation_id and conversation_id in self._memories:
             memory = self._memories[conversation_id]
@@ -467,9 +516,9 @@ class RAGManager:
                             history_parts.append(f"用户: {msg.content}")
                         elif msg.__class__.__name__ == "AIMessage":
                             history_parts.append(f"助手: {msg.content}")
-        
+
         return "\n".join(history_parts) if history_parts else "无"
-    
+
     def _update_memory(
         self,
         conversation_id: str,
@@ -478,7 +527,7 @@ class RAGManager:
     ) -> None:
         """
         更新对话记忆
-        
+
         Args:
             conversation_id: 对话ID
             question: 用户问题
@@ -488,37 +537,37 @@ class RAGManager:
             self._memories[conversation_id] = ConversationBufferMemory(
                 return_messages=True,
             )
-        
+
         memory = self._memories[conversation_id]
         memory.chat_memory.add_user_message(question)
         memory.chat_memory.add_ai_message(answer)
-    
+
     def clear_memory(self, conversation_id: str) -> None:
         """
         清除对话记忆
-        
+
         Args:
             conversation_id: 对话ID
         """
         if conversation_id in self._memories:
             self._memories[conversation_id].clear()
             del self._memories[conversation_id]
-    
+
     def _estimate_tokens(self, text: str) -> int:
         """
         估算文本的token数量
-        
+
         Args:
             text: 文本内容
-        
+
         Returns:
             int: 估算的token数量
         """
         # 统计中文字符数
-        chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+        chinese_chars = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
         # 统计其他字符数
         other_chars = len(text) - chinese_chars
-        
+
         # 估算token数
         estimated = (chinese_chars / 2) + (other_chars / 4)
         return int(estimated)
@@ -531,22 +580,22 @@ _rag_manager: Optional[RAGManager] = None
 def get_rag_manager() -> RAGManager:
     """
     获取全局RAG管理器实例
-    
+
     Returns:
         RAGManager: RAG管理器实例
     """
     global _rag_manager
-    
+
     if _rag_manager is None:
         _rag_manager = RAGManager()
-    
+
     return _rag_manager
 
 
 def clear_rag_manager() -> None:
     """
     清除全局RAG管理器实例
-    
+
     用于测试或重置状态
     """
     global _rag_manager
@@ -555,11 +604,11 @@ def clear_rag_manager() -> None:
 
 # 导出
 __all__ = [
-    'RAGManager',
-    'RAGResponse',
-    'DocumentChunk',
-    'get_rag_manager',
-    'clear_rag_manager',
-    'RAG_PROMPT_TEMPLATE',
-    'RAG_CONVERSATION_TEMPLATE',
+    "RAGManager",
+    "RAGResponse",
+    "DocumentChunk",
+    "get_rag_manager",
+    "clear_rag_manager",
+    "RAG_PROMPT_TEMPLATE",
+    "RAG_CONVERSATION_TEMPLATE",
 ]

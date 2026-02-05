@@ -1,7 +1,7 @@
 export const APP_CONSTANTS = {
   UPLOAD: {
     MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-    ALLOWED_TYPES: ['.pdf', '.doc', '.docx', '.txt', '.md']
+    ALLOWED_TYPES: ['.pdf', '.docx', '.txt', '.md']
   },
   API: {
     TIMEOUT: 30000,

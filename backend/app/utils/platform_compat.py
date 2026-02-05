@@ -4,8 +4,8 @@
 为 Windows 平台提供 Unix/Linux 特有模块的 mock 实现。
 """
 
-import sys
 import platform
+import sys
 
 # 如果在 Windows 平台上，mock pwd 和 grp 模块
 if platform.system() == "Windows":
@@ -15,6 +15,7 @@ if platform.system() == "Windows":
 
         class struct_passwd:
             """Mock passwd 结构"""
+
             def __init__(self):
                 self.pw_name = "user"
                 self.pw_passwd = "x"
@@ -40,6 +41,7 @@ if platform.system() == "Windows":
 
         class struct_group:
             """Mock group 结构"""
+
             def __init__(self):
                 self.gr_name = "group"
                 self.gr_passwd = "x"
@@ -57,5 +59,5 @@ if platform.system() == "Windows":
             return GrpModule.struct_group()
 
     # 将 mock 模块注入到 sys.modules
-    sys.modules['pwd'] = PwdModule()
-    sys.modules['grp'] = GrpModule()
+    sys.modules["pwd"] = PwdModule()
+    sys.modules["grp"] = GrpModule()

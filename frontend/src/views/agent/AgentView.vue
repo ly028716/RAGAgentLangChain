@@ -1,43 +1,26 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Plus, Delete, Edit, Setting, VideoPlay, 
-  Check, Close, Loading, Tools, Clock
+import { ElMessage } from 'element-plus'
+import {
+  VideoPlay, Check, Close, Loading, Tools, Clock
 } from '@element-plus/icons-vue'
 import { useAgentStore } from '@/stores/agent'
-import type { AgentTool, ToolCreate, AgentStep } from '@/types'
+import type { AgentTool } from '@/types'
 
 const agentStore = useAgentStore()
 
 // 状态
-const activeTab = ref('execute')
 const taskInput = ref('')
 const selectedToolIds = ref<number[]>([])
 const maxIterations = ref(10)
-const showToolDialog = ref(false)
-const editingTool = ref<AgentTool | null>(null)
-const toolForm = ref<ToolCreate>({ name: '', description: '', config: {} })
-const configJson = ref('{}')
-const configError = ref('')
 
 // 计算属性
 const canExecute = computed(() => taskInput.value.trim() && !agentStore.executing)
 
-// 验证JSON配置
-function validateConfigJson(): boolean {
-  configError.value = ''
-  if (!configJson.value.trim()) {
-    configJson.value = '{}'
-  }
-  try {
-    JSON.parse(configJson.value)
-    return true
-  } catch (e: any) {
-    configError.value = `JSON格式错误: ${e.message}`
-    return false
-  }
-}
+// 只显示内置工具
+const builtinTools = computed(() =>
+  agentStore.tools.filter(tool => tool.tool_type === 'builtin')
+)
 
 // 方法
 async function handleExecute() {
@@ -65,66 +48,6 @@ function handleStreamExecute() {
   agentStore.streamExecuteTask(taskInput.value, toolIds, maxIterations.value)
 }
 
-async function handleCreateTool() {
-  if (!toolForm.value.name.trim() || !toolForm.value.description.trim()) {
-    ElMessage.warning('请填写工具名称和描述')
-    return
-  }
-
-  if (!validateConfigJson()) {
-    ElMessage.warning(configError.value)
-    return
-  }
-
-  try {
-    toolForm.value.config = JSON.parse(configJson.value)
-    await agentStore.createTool(toolForm.value)
-    ElMessage.success('创建成功')
-    closeToolDialog()
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '创建失败')
-  }
-}
-
-async function handleUpdateTool() {
-  if (!editingTool.value) return
-
-  if (!validateConfigJson()) {
-    ElMessage.warning(configError.value)
-    return
-  }
-
-  try {
-    const config = JSON.parse(configJson.value)
-    await agentStore.updateTool(editingTool.value.id, {
-      name: toolForm.value.name,
-      description: toolForm.value.description,
-      config
-    })
-    ElMessage.success('更新成功')
-    closeToolDialog()
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '更新失败')
-  }
-}
-
-async function handleDeleteTool(tool: AgentTool) {
-  if (tool.tool_type === 'builtin') {
-    ElMessage.warning('内置工具不能删除')
-    return
-  }
-
-  try {
-    await ElMessageBox.confirm(`确定要删除工具"${tool.name}"吗？`, '删除确认', { type: 'warning' })
-    await agentStore.deleteTool(tool.id)
-    ElMessage.success('删除成功')
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.detail || '删除失败')
-    }
-  }
-}
-
 async function handleToggleTool(tool: AgentTool) {
   try {
     await agentStore.toggleTool(tool.id, !tool.is_enabled)
@@ -132,30 +55,6 @@ async function handleToggleTool(tool: AgentTool) {
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '操作失败')
   }
-}
-
-function openEditTool(tool: AgentTool) {
-  editingTool.value = tool
-  toolForm.value = { name: tool.name, description: tool.description, config: tool.config || {} }
-  configJson.value = JSON.stringify(tool.config || {}, null, 2)
-  configError.value = ''
-  showToolDialog.value = true
-}
-
-function openCreateTool() {
-  editingTool.value = null
-  toolForm.value = { name: '', description: '', config: {} }
-  configJson.value = '{}'
-  configError.value = ''
-  showToolDialog.value = true
-}
-
-function closeToolDialog() {
-  showToolDialog.value = false
-  editingTool.value = null
-  toolForm.value = { name: '', description: '', config: {} }
-  configJson.value = '{}'
-  configError.value = ''
 }
 
 function formatDate(dateStr: string): string {
@@ -204,41 +103,45 @@ onMounted(() => {
       <!-- 左侧：工具列表 -->
       <aside class="tools-sidebar">
         <div class="tools-header">
-          <h3>工具列表</h3>
-          <el-button type="primary" :icon="Plus" size="small" @click="openCreateTool">
-            创建工具
-          </el-button>
+          <h3>内置工具</h3>
         </div>
-        
+
         <div class="tools-list" v-loading="agentStore.loading">
-          <template v-if="agentStore.tools.length > 0">
-            <div v-for="tool in agentStore.tools" :key="tool.id" class="tool-card">
+          <template v-if="builtinTools.length > 0">
+            <div v-for="tool in builtinTools" :key="tool.id" class="tool-card">
               <div class="tool-header-row">
                 <div class="tool-icon">
                   <el-icon :size="20"><Tools /></el-icon>
                 </div>
                 <div class="tool-name-col">
                   <span class="tool-name">{{ tool.name }}</span>
-                  <el-tag :type="tool.tool_type === 'builtin' ? 'info' : 'success'" size="small">
-                    {{ tool.tool_type === 'builtin' ? '内置' : '自定义' }}
-                  </el-tag>
                 </div>
-                <el-switch 
-                  :model-value="tool.is_enabled" 
+                <el-switch
+                  :model-value="tool.is_enabled"
                   @change="handleToggleTool(tool)"
                   size="small"
                 />
               </div>
               <p class="tool-desc">{{ tool.description }}</p>
-              <div class="tool-actions" v-if="tool.tool_type === 'custom'">
-                <el-button text :icon="Edit" size="small" @click="openEditTool(tool)">编辑</el-button>
-                <el-button text :icon="Delete" size="small" type="danger" @click="handleDeleteTool(tool)">删除</el-button>
-              </div>
             </div>
           </template>
           <div v-else class="empty-tools">
-            <el-icon :size="32"><Tools /></el-icon>
-            <p>暂无工具</p>
+            <el-icon :size="48" color="#909399"><Tools /></el-icon>
+            <h4>系统内置工具未初始化</h4>
+            <p class="empty-desc">
+              系统需要初始化内置工具（计算器、搜索、天气查询等）才能使用 Agent 功能。
+            </p>
+            <el-alert type="info" :closable="false" style="margin-top: 16px;">
+              <template #title>
+                <span style="font-weight: 500;">如何初始化？</span>
+              </template>
+              <div style="font-size: 13px; line-height: 1.6; margin-top: 4px;">
+                请联系系统管理员运行以下命令初始化内置工具：<br>
+                <code style="background: #f5f7fa; padding: 2px 8px; border-radius: 3px; margin-top: 4px; display: inline-block;">
+                  python backend/scripts/seed_data.py
+                </code>
+              </div>
+            </el-alert>
           </div>
         </div>
       </aside>
@@ -355,45 +258,6 @@ onMounted(() => {
         </div>
       </main>
     </div>
-
-    <!-- 工具编辑对话框 -->
-    <el-dialog
-      :title="editingTool ? '编辑工具' : '创建工具'"
-      v-model="showToolDialog"
-      width="500px"
-      @close="closeToolDialog"
-    >
-      <el-form :model="toolForm" label-width="80px">
-        <el-form-item label="名称" required>
-          <el-input v-model="toolForm.name" placeholder="请输入工具名称" maxlength="100" />
-        </el-form-item>
-        <el-form-item label="描述" required>
-          <el-input 
-            v-model="toolForm.description" 
-            type="textarea" 
-            :rows="3"
-            placeholder="请输入工具描述" 
-            maxlength="500"
-          />
-        </el-form-item>
-        <el-form-item label="配置">
-          <el-input 
-            v-model="configJson" 
-            type="textarea" 
-            :rows="5"
-            placeholder='{"key": "value"}'
-            @blur="validateConfigJson"
-          />
-          <div v-if="configError" class="config-error">{{ configError }}</div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="closeToolDialog">取消</el-button>
-        <el-button type="primary" @click="editingTool ? handleUpdateTool() : handleCreateTool()">
-          {{ editingTool ? '保存' : '创建' }}
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -516,7 +380,7 @@ onMounted(() => {
   }
   
   .tool-desc {
-    margin: 0 0 12px;
+    margin: 0;
     font-size: 12px;
     color: var(--el-text-color-secondary);
     line-height: 1.4;
@@ -524,14 +388,6 @@ onMounted(() => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-  }
-  
-  .tool-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 4px;
-    padding-top: 8px;
-    border-top: 1px solid var(--el-border-color-lighter);
   }
 }
 
@@ -735,18 +591,30 @@ onMounted(() => {
 
 .empty-tools {
   text-align: center;
-  padding: 40px 0;
+  padding: 40px 20px;
   color: var(--el-text-color-secondary);
-  
-  p {
-    margin-top: 8px;
-    font-size: 13px;
-  }
-}
 
-.config-error {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--el-color-danger);
+  h4 {
+    margin: 16px 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .empty-desc {
+    margin: 0 0 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--el-text-color-regular);
+  }
+
+  code {
+    background: #f5f7fa;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--el-color-primary);
+  }
 }
 </style>

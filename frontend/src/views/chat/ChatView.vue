@@ -2,8 +2,9 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Setting, ChatDotRound, Loading } from '@element-plus/icons-vue'
+import { Setting, ChatDotRound, Loading, Document } from '@element-plus/icons-vue'
 import { useConversationStore } from '@/stores/conversation'
+import { useKnowledgeStore } from '@/stores/knowledge'
 import { useChat } from '@/composables/useChat'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
@@ -12,6 +13,7 @@ import type { ChatConfig } from '@/types'
 const route = useRoute()
 const router = useRouter()
 const conversationStore = useConversationStore()
+const knowledgeStore = useKnowledgeStore()
 const { sendMessage, stopStreaming } = useChat()
 
 const messageListRef = ref<HTMLElement | null>(null)
@@ -21,7 +23,14 @@ const showConfig = ref(false)
 
 const config = ref<ChatConfig>({
   temperature: 0.7,
-  max_tokens: 2000
+  max_tokens: 2000,
+  knowledge_base_ids: []
+})
+
+// 加载知识库列表
+onMounted(async () => {
+  chatInputRef.value?.focus()
+  await knowledgeStore.fetchKnowledgeBases()
 })
 
 const currentConversationId = computed(() => {
@@ -126,8 +135,8 @@ onMounted(() => {
         
         <!-- 流式输出中的消息 -->
         <ChatMessage
-          v-if="isStreaming && streamingContent"
-          :message="{ id: -1, role: 'assistant', content: streamingContent, created_at: '' }"
+          v-if="isStreaming"
+          :message="{ id: -1, role: 'assistant', content: streamingContent || '', created_at: '' }"
           :is-streaming="true"
         />
       </template>
@@ -153,6 +162,12 @@ onMounted(() => {
     <!-- 输入区域 -->
     <div class="input-area">
       <div class="input-toolbar">
+        <el-tooltip v-if="config.knowledge_base_ids?.length" content="已启用知识库" placement="top">
+           <el-tag size="small" type="success" closable @close="config.knowledge_base_ids = []" style="margin-right: 8px">
+             <el-icon><Document /></el-icon>
+             已关联 {{ config.knowledge_base_ids.length }} 个知识库
+           </el-tag>
+        </el-tooltip>
         <el-tooltip content="对话配置" placement="top">
           <el-button :icon="Setting" text @click="toggleConfig" />
         </el-tooltip>
@@ -187,6 +202,7 @@ onMounted(() => {
           <div class="form-tip">较低的值使输出更确定，较高的值使输出更随机</div>
         </el-form-item>
 
+
         <el-form-item label="最大 Token 数">
           <el-input-number
             v-model="config.max_tokens"
@@ -196,6 +212,25 @@ onMounted(() => {
             style="width: 100%"
           />
           <div class="form-tip">控制回复的最大长度</div>
+        </el-form-item>
+
+        <el-form-item label="关联知识库">
+          <el-select
+            v-model="config.knowledge_base_ids"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="选择知识库"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="kb in knowledgeStore.knowledgeBases"
+              :key="kb.id"
+              :label="kb.name"
+              :value="kb.id"
+            />
+          </el-select>
+          <div class="form-tip">选择要引用的知识库，AI 将基于知识库内容回答</div>
         </el-form-item>
       </el-form>
     </el-drawer>

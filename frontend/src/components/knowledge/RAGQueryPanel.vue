@@ -43,7 +43,9 @@ async function handleQuery() {
 }
 
 function formatScore(score: number): string {
-  return (score * 100).toFixed(1) + '%'
+  const pct = score * 100
+  if (pct > 0 && pct < 0.01) return '<0.01%'
+  return pct.toFixed(2) + '%'
 }
 </script>
 

@@ -10,23 +10,17 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.knowledge_base import (
-    KnowledgeBaseCreate,
-    KnowledgeBaseUpdate,
-    KnowledgeBaseResponse,
-    KnowledgeBaseListResponse,
-    MessageResponse,
-)
-from app.services.rag_service import (
-    RAGService,
-    KnowledgeBaseNotFoundError,
-)
+from app.schemas.knowledge_base import (KnowledgeBaseCreate,
+                                        KnowledgeBaseListResponse,
+                                        KnowledgeBaseResponse,
+                                        KnowledgeBaseUpdate, MessageResponse)
+from app.services.rag_service import KnowledgeBaseNotFoundError, RAGService
 
 logger = logging.getLogger(__name__)
 
@@ -47,21 +41,21 @@ def create_knowledge_base(
 ):
     """
     创建知识库
-    
+
     需求引用:
         - 需求3.1: 用户创建知识库且提供名称和描述
     """
     service = RAGService(db)
-    
+
     kb = service.create_knowledge_base(
         user_id=current_user.id,
         name=request.name,
         description=request.description,
         category=request.category,
     )
-    
+
     logger.info(f"用户 {current_user.id} 创建知识库: id={kb.id}, name={kb.name}")
-    
+
     return KnowledgeBaseResponse(
         id=kb.id,
         name=kb.name,
@@ -80,32 +74,34 @@ def create_knowledge_base(
     description="获取当前用户的所有知识库列表，支持分页。",
 )
 def get_knowledge_bases(
-    skip: int = 0,
-    limit: int = 20,
+    skip: int = Query(default=0, ge=0, description="跳过的记录数"),
+    limit: int = Query(default=20, ge=1, le=100, description="返回的最大记录数"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """获取知识库列表"""
     service = RAGService(db)
-    
+
     knowledge_bases, total = service.get_knowledge_bases(
         user_id=current_user.id,
         skip=skip,
         limit=limit,
     )
-    
+
     items = []
     for kb in knowledge_bases:
-        items.append(KnowledgeBaseResponse(
-            id=kb.id,
-            name=kb.name,
-            description=kb.description,
-            category=kb.category,
-            document_count=len(kb.documents),
-            created_at=kb.created_at,
-            updated_at=kb.updated_at,
-        ))
-    
+        items.append(
+            KnowledgeBaseResponse(
+                id=kb.id,
+                name=kb.name,
+                description=kb.description,
+                category=kb.category,
+                document_count=len(kb.documents),
+                created_at=kb.created_at,
+                updated_at=kb.updated_at,
+            )
+        )
+
     return KnowledgeBaseListResponse(total=total, items=items)
 
 
@@ -122,7 +118,7 @@ def get_knowledge_base(
 ):
     """获取知识库详情"""
     service = RAGService(db)
-    
+
     try:
         kb = service.get_knowledge_base(kb_id, current_user.id)
     except KnowledgeBaseNotFoundError:
@@ -130,7 +126,7 @@ def get_knowledge_base(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="知识库不存在",
         )
-    
+
     return KnowledgeBaseResponse(
         id=kb.id,
         name=kb.name,
@@ -156,7 +152,7 @@ def update_knowledge_base(
 ):
     """更新知识库"""
     service = RAGService(db)
-    
+
     try:
         kb = service.update_knowledge_base(
             kb_id=kb_id,
@@ -170,9 +166,9 @@ def update_knowledge_base(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="知识库不存在",
         )
-    
+
     logger.info(f"用户 {current_user.id} 更新知识库: id={kb_id}")
-    
+
     return KnowledgeBaseResponse(
         id=kb.id,
         name=kb.name,
@@ -197,7 +193,7 @@ def delete_knowledge_base(
 ):
     """删除知识库"""
     service = RAGService(db)
-    
+
     try:
         success = service.delete_knowledge_base(kb_id, current_user.id)
     except KnowledgeBaseNotFoundError:
@@ -205,17 +201,17 @@ def delete_knowledge_base(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="知识库不存在",
         )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除知识库失败",
         )
-    
+
     logger.info(f"用户 {current_user.id} 删除知识库: id={kb_id}")
-    
+
     return MessageResponse(message="知识库删除成功")
 
 
 # 导出
-__all__ = ['router']
+__all__ = ["router"]

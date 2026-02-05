@@ -1,105 +1,157 @@
 import { ref } from 'vue'
 import { useConversationStore } from '@/stores/conversation'
-import { storage } from '@/utils/storage'
+import { fetchStream } from '@/utils/fetch-stream'
 import type { ChatConfig } from '@/types'
+import { ElMessage } from 'element-plus'
 
 export function useChat() {
   const conversationStore = useConversationStore()
   const abortController = ref<AbortController | null>(null)
+
+  function handleSseData(
+    data: string,
+    updateConversationId: (id: number) => void
+  ) {
+    if (!data) return
+    if (data === '[DONE]') {
+      return
+    }
+
+    if (data.startsWith('{') || data.startsWith('[')) {
+      let parsed: any
+      try {
+        parsed = JSON.parse(data)
+      } catch {
+        conversationStore.appendStreamContent(data)
+        return
+      }
+
+      if (parsed?.type === 'conversation' && parsed?.conversation_id) {
+        updateConversationId(parsed.conversation_id)
+      }
+
+      if (parsed?.type === 'sources' && Array.isArray(parsed?.sources)) {
+        conversationStore.setStreamSources(parsed.sources)
+      }
+
+      if (parsed?.conversation_id) {
+        updateConversationId(parsed.conversation_id)
+      }
+
+      if (typeof parsed?.content === 'string' && parsed.content) {
+        conversationStore.appendStreamContent(parsed.content)
+      }
+
+      if (parsed?.error) {
+        throw new Error(parsed.error)
+      }
+
+      if (parsed?.type === 'done') {
+        return
+      }
+
+      return
+    }
+
+    conversationStore.appendStreamContent(data)
+  }
 
   async function sendMessage(
     content: string,
     conversationId: number | null,
     config?: ChatConfig
   ): Promise<{ conversationId: number | null; success: boolean }> {
+    console.log('[useChat] 开始发送消息:', {
+      conversationId,
+      contentLength: content.length,
+      hasConfig: !!config,
+      knowledgeBaseIds: config?.knowledge_base_ids
+    })
+
     // 添加用户消息
     conversationStore.addUserMessage(content)
     conversationStore.startStreaming()
 
     abortController.value = new AbortController()
+    let newConversationId = conversationId
 
     try {
-      const response = await fetch('/api/v1/chat/stream', {
+      let buffer = ''
+      await fetchStream('/chat/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storage.getToken()}`
-        },
         body: JSON.stringify({
-          conversation_id: conversationId,  // 可以为 null，后端会自动创建新对话
+          conversation_id: conversationId,
           content,
-          config: config || {}
+          config: config || {},
+          knowledge_base_ids: config?.knowledge_base_ids
         }),
-        signal: abortController.value.signal
-      })
+        signal: abortController.value.signal,
+        timeout: 30000, // 30秒超时
+        onMessage: (text) => {
+          buffer += text
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+          const parts = buffer.split(/\r?\n\r?\n/)
+          buffer = parts.pop() || ''
 
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let newConversationId = conversationId
+          const updateConversationId = (id: number) => {
+            newConversationId = id
+          }
 
-      while (reader) {
-        const { done, value } = await reader.read()
-        if (done) break
+          for (const part of parts) {
+            const lines = part.split(/\r?\n/)
+            const dataLines = lines
+              .filter(line => line.startsWith('data:'))
+              .map(line => line.slice(5).trimStart())
 
-        const text = decoder.decode(value)
-        const lines = text.split('\n')
+            if (dataLines.length === 0) continue
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim()
-            
-            if (data === '[DONE]') {
-              conversationStore.finalizeStreamMessage()
-              return { conversationId: newConversationId, success: true }
-            }
+            const data = dataLines.join('\n').trim()
+            if (!data) continue
 
             try {
-              const parsed = JSON.parse(data)
-              
-              // 处理新对话ID（后端自动创建对话时返回）
-              if (parsed.type === 'conversation' && parsed.conversation_id) {
-                newConversationId = parsed.conversation_id
-              }
-              
-              // 处理done事件中的conversation_id
-              if (parsed.conversation_id && !newConversationId) {
-                newConversationId = parsed.conversation_id
-              }
-              
-              // 处理内容
-              if (parsed.content) {
-                conversationStore.appendStreamContent(parsed.content)
-              }
-              
-              // 处理错误
-              if (parsed.error) {
-                throw new Error(parsed.error)
-              }
+              handleSseData(data, updateConversationId)
             } catch (e) {
-              // 忽略解析错误，可能是不完整的JSON
-              if (data && !data.startsWith('{')) {
-                conversationStore.appendStreamContent(data)
-              }
+              console.error('[useChat] 处理SSE数据失败:', e, '数据:', data)
+              throw e
             }
           }
         }
-      }
+      })
 
+      console.log('[useChat] 消息发送成功, conversationId:', newConversationId)
       conversationStore.finalizeStreamMessage()
       return { conversationId: newConversationId, success: true }
     } catch (error: any) {
       if (error.name === 'AbortError') {
+        console.log('[useChat] 消息发送被取消')
         conversationStore.finalizeStreamMessage()
-        return { conversationId, success: true }
+        return { conversationId: newConversationId, success: true }
       }
-      
-      console.error('发送消息失败:', error)
+
+      console.error('[useChat] 发送消息失败:', {
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack,
+        conversationId: newConversationId
+      })
+
+      // 根据错误类型显示不同的提示
+      let errorMessage = '发送消息失败'
+      if (error?.message) {
+        if (error.message.includes('超时')) {
+          errorMessage = error.message
+        } else if (error.message.includes('网络')) {
+          errorMessage = '网络连接失败，请检查网络后重试'
+        } else if (error.message.includes('认证')) {
+          errorMessage = error.message
+        } else {
+          errorMessage = error.message
+        }
+      }
+
+      ElMessage.error(errorMessage)
       conversationStore.finalizeStreamMessage()
-      return { conversationId, success: false }
+      return { conversationId: newConversationId, success: false }
     } finally {
       abortController.value = null
     }

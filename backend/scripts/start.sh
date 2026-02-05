@@ -20,7 +20,7 @@ retry_interval = 2
 
 for i in range(max_retries):
     try:
-        engine = create_engine(settings.DATABASE_URL)
+        engine = create_engine(settings.database.database_url)
         with engine.connect() as conn:
             conn.execute(text('SELECT 1'))
         print('Database is ready!')

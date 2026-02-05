@@ -6,12 +6,13 @@ Redis连接管理模块
 """
 
 from typing import Generator, Optional
+
 import redis
-from redis import Redis, ConnectionPool
-from redis.exceptions import RedisError, ConnectionError as RedisConnectionError
+from redis import ConnectionPool, Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import RedisError
 
 from app.config import settings
-
 
 # 创建Redis连接池
 # max_connections: 连接池最大连接数
@@ -29,7 +30,7 @@ redis_pool = ConnectionPool(
     socket_connect_timeout=5,
     socket_keepalive=True,
     decode_responses=True,
-    encoding='utf-8',
+    encoding="utf-8",
 )
 
 
@@ -40,9 +41,9 @@ redis_client: Optional[Redis] = None
 def get_redis_client() -> Redis:
     """
     获取Redis客户端实例
-    
+
     使用单例模式，确保整个应用使用同一个Redis客户端。
-    
+
     Returns:
         Redis: Redis客户端实例
     """
@@ -55,16 +56,16 @@ def get_redis_client() -> Redis:
 def get_redis() -> Generator[Redis, None, None]:
     """
     Redis依赖函数
-    
+
     用于FastAPI的依赖注入，提供Redis客户端实例。
     自动处理连接的获取和释放。
-    
+
     使用方式:
         @app.get("/cache")
         def get_cache(redis: Redis = Depends(get_redis)):
             value = redis.get("key")
             return {"value": value}
-    
+
     Yields:
         Redis: Redis客户端实例
     """
@@ -83,9 +84,9 @@ def get_redis() -> Generator[Redis, None, None]:
 def ping_redis() -> bool:
     """
     测试Redis连接
-    
+
     用于健康检查，验证Redis服务是否可用。
-    
+
     Returns:
         bool: Redis连接是否正常
     """
@@ -100,14 +101,14 @@ def ping_redis() -> bool:
 def close_redis() -> None:
     """
     关闭Redis连接
-    
+
     在应用关闭时调用，清理Redis连接池。
     """
     global redis_client
     if redis_client is not None:
         redis_client.close()
         redis_client = None
-    
+
     if redis_pool is not None:
         redis_pool.disconnect()
 
@@ -116,44 +117,45 @@ def close_redis() -> None:
 class RedisKeys:
     """
     Redis键命名规范
-    
+
     统一管理Redis键的命名，避免键冲突。
     """
+
     # 用户相关
     USER_INFO = "user:{user_id}:info"
     USER_TOKEN_BLACKLIST = "user:token:blacklist:{token}"
-    
+
     # 登录尝试
     LOGIN_ATTEMPTS = "login:attempts:{username}"
     ACCOUNT_LOCKED = "login:locked:{username}"
-    
+
     # 配额管理
     USER_QUOTA = "quota:{user_id}:monthly"
     USER_QUOTA_USED = "quota:{user_id}:used"
-    
+
     # 缓存
     CONVERSATION_LIST = "cache:conversations:{user_id}"
     KNOWLEDGE_BASE_LIST = "cache:knowledge_bases:{user_id}"
     SYSTEM_CONFIG = "cache:system:config"
-    
+
     # 文档处理进度
     DOCUMENT_PROGRESS = "document:{document_id}:progress"
-    
+
     # Agent执行状态
     AGENT_EXECUTION = "agent:execution:{execution_id}"
-    
+
     # WebSocket连接
     WS_CONNECTION = "ws:connection:{user_id}"
-    
+
     @staticmethod
     def format_key(template: str, **kwargs) -> str:
         """
         格式化Redis键
-        
+
         Args:
             template: 键模板
             **kwargs: 模板参数
-        
+
         Returns:
             str: 格式化后的键
         """
@@ -162,11 +164,11 @@ class RedisKeys:
 
 # 导出
 __all__ = [
-    'redis_pool',
-    'redis_client',
-    'get_redis_client',
-    'get_redis',
-    'ping_redis',
-    'close_redis',
-    'RedisKeys',
+    "redis_pool",
+    "redis_client",
+    "get_redis_client",
+    "get_redis",
+    "ping_redis",
+    "close_redis",
+    "RedisKeys",
 ]

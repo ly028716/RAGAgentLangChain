@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npm run dev:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pytest:*)",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(curl:*)",
+      "Bash(docker-compose exec mysql mysql:*)",
+      "Bash(docker-compose restart:*)",
+      "Skill(code-review)",
+      "Bash(docker-compose:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(docker exec:*)",
+      "Bash(pip show:*)",
+      "Bash(test:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(mysql:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker ps:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}

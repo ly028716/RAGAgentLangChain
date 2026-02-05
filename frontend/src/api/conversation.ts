@@ -33,7 +33,7 @@ export const conversationApi = {
   getMessages(conversationId: number, skip = 0, limit = 50): Promise<{ items: Message[] }> {
     return request.get(`/conversations/${conversationId}/messages`, { 
       params: { skip, limit } 
-    }).then(messages => ({ items: messages }))
+    }).then((messages: any) => ({ items: messages }))
   },
 
   // 导出对话

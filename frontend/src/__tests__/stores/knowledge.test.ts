@@ -16,6 +16,10 @@ vi.mock('@/api/knowledge', () => ({
     update: vi.fn(),
     delete: vi.fn(),
     getDocuments: vi.fn(),
+    getDocumentStatus: vi.fn(),
+    getDocumentPreview: vi.fn(),
+    downloadDocument: vi.fn(),
+    retryDocument: vi.fn(),
     uploadDocument: vi.fn(),
     uploadDocuments: vi.fn(),
     deleteDocument: vi.fn()
@@ -217,6 +221,37 @@ describe('Knowledge Store', () => {
       await expect(store.fetchDocuments(1)).rejects.toThrow()
       expect(store.documentsError).toBe('获取文档失败')
     })
+
+    it('切换知识库时应忽略旧请求返回，展示最后一次请求结果', async () => {
+      const store = useKnowledgeStore()
+
+      let resolveKb2: ((val: PaginatedList<Document>) => void) | null = null
+      const kb2Promise = new Promise<PaginatedList<Document>>(resolve => {
+        resolveKb2 = resolve
+      })
+
+      vi.mocked(knowledgeApi.getDocuments).mockImplementation((kbId: number) => {
+        if (kbId === 2) return kb2Promise
+        return Promise.resolve({
+          items: [createMockDocument({ id: 101, knowledge_base_id: 1, filename: 'doc1.docx' })],
+          total: 1
+        })
+      })
+
+      const p2 = store.fetchDocuments(2)
+      const p1 = store.fetchDocuments(1)
+
+      resolveKb2?.({
+        items: [createMockDocument({ id: 202, knowledge_base_id: 2, filename: 'doc2.txt' })],
+        total: 1
+      })
+
+      await Promise.all([p2.catch(() => null), p1])
+
+      expect(store.documents.length).toBe(1)
+      expect(store.documents[0].knowledge_base_id).toBe(1)
+      expect(store.documents[0].filename).toBe('doc1.docx')
+    })
   })
 
   describe('uploadDocument', () => {
@@ -235,6 +270,13 @@ describe('Knowledge Store', () => {
       const mockDoc = createMockDocument({ id: 1, filename: 'test.pdf' })
       vi.mocked(knowledgeApi.uploadDocument).mockResolvedValue(mockUpload)
       vi.mocked(knowledgeApi.getDocuments).mockResolvedValue({ items: [mockDoc], total: 1 })
+      vi.mocked(knowledgeApi.getDocumentStatus).mockResolvedValue({
+        document_id: 1,
+        status: 'completed',
+        progress: 100,
+        chunk_count: 10,
+        error_message: undefined
+      })
 
       const file = new File(['test'], 'test.pdf', { type: 'application/pdf' })
       await store.uploadDocument(1, file)

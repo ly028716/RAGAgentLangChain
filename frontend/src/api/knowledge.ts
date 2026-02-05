@@ -41,8 +41,7 @@ export const knowledgeApi = {
     const formData = new FormData()
     formData.append('file', file)
     return request.post('/documents/upload', formData, {
-      params: { knowledge_base_id: kbId },
-      headers: { 'Content-Type': 'multipart/form-data' }
+      params: { knowledge_base_id: kbId }
     })
   },
 
@@ -50,8 +49,7 @@ export const knowledgeApi = {
     const formData = new FormData()
     files.forEach(file => formData.append('files', file))
     return request.post('/documents/upload-batch', formData, {
-      params: { knowledge_base_id: kbId },
-      headers: { 'Content-Type': 'multipart/form-data' }
+      params: { knowledge_base_id: kbId }
     })
   },
 
@@ -61,6 +59,14 @@ export const knowledgeApi = {
 
   getDocumentPreview(docId: number, maxChars = 1000): Promise<{ document_id: number, filename: string, content: string, total_length: number }> {
     return request.get(`/documents/${docId}/preview`, { params: { max_chars: maxChars } })
+  },
+
+  downloadDocument(docId: number): Promise<Blob> {
+    return request.get(`/documents/${docId}/download`, { responseType: 'blob' })
+  },
+
+  retryDocument(docId: number): Promise<Document> {
+    return request.post(`/documents/${docId}/retry`)
   },
 
   deleteDocument(docId: number): Promise<{ message: string }> {

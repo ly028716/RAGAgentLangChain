@@ -23,7 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchUserInfo()
       return true
     } catch (error) {
-      return false
+      throw error
     }
   }
 
@@ -32,7 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.register({ username, password, email })
       return true
     } catch (error) {
-      return false
+      throw error
     }
   }
 
@@ -79,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     token,
+    refreshToken,
     user,
     isAuthenticated,
     username,

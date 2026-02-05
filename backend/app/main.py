@@ -4,30 +4,29 @@ FastAPI应用主入口
 配置FastAPI应用，注册路由，配置中间件，启动定时任务。
 """
 
-# 必须在所有其他导入之前导入平台兼容性模块
-# 用于在 Windows 平台上 mock Unix/Linux 特有的 pwd 和 grp 模块
-import app.utils.platform_compat  # noqa: F401
-
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from slowapi.middleware import SlowAPIMiddleware
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy.orm import Session
 
+# 必须在所有其他导入之前导入平台兼容性模块
+# 用于在 Windows 平台上 mock Unix/Linux 特有的 pwd 和 grp 模块
+import app.utils.platform_compat  # noqa: F401
 from app.config import settings
-from app.core.database import engine, Base
+from app.core.database import Base, engine, get_db
 from app.middleware.error_handler import register_exception_handlers
-from app.middleware.rate_limiter import limiter, register_rate_limiter
-from app.middleware.request_id import RequestIDMiddleware
 from app.middleware.prometheus_middleware import PrometheusMiddleware
-from app.tasks.quota_tasks import reset_monthly_quotas
+from app.middleware.rate_limiter import register_rate_limiter
+from app.middleware.request_id import RequestIDMiddleware
 from app.tasks.cleanup_tasks import run_all_cleanup_tasks
-from app.utils.logger import setup_logging, get_logger, set_third_party_log_levels
-
+from app.tasks.quota_tasks import reset_monthly_quotas
+from app.utils.logger import (get_logger, set_third_party_log_levels,
+                              setup_logging)
 
 # 配置日志系统
 setup_logging()
@@ -42,40 +41,40 @@ scheduler: AsyncIOScheduler = None
 def setup_scheduler() -> AsyncIOScheduler:
     """
     配置并启动APScheduler定时任务调度器
-    
+
     配置的定时任务:
         1. 配额重置任务: 每月1日凌晨0点执行
         2. 清理任务: 每天凌晨2点执行
-    
+
     Returns:
         AsyncIOScheduler: 配置好的调度器实例
-    
+
     需求引用:
         - 需求11.6: 每月1日自动重置所有用户的配额
         - 需求8.5: 清理旧登录记录任务
     """
     # 创建调度器
     scheduler = AsyncIOScheduler(
-        timezone='UTC',
+        timezone="UTC",
         job_defaults={
-            'coalesce': True,  # 合并错过的任务
-            'max_instances': 1,  # 每个任务最多同时运行1个实例
-            'misfire_grace_time': 3600  # 错过任务的宽限时间（秒）
-        }
+            "coalesce": True,  # 合并错过的任务
+            "max_instances": 1,  # 每个任务最多同时运行1个实例
+            "misfire_grace_time": 3600,  # 错过任务的宽限时间（秒）
+        },
     )
-    
+
     # 添加配额重置任务（每月1日凌晨0点）
     if settings.background_task.enable_scheduler:
         try:
             # 从配置读取cron表达式，默认为 "0 0 1 * *"（每月1日凌晨0点）
             cron_expr = settings.background_task.quota_reset_cron
-            
+
             # 解析cron表达式
             # 格式: 分 时 日 月 星期
             parts = cron_expr.split()
             if len(parts) == 5:
                 minute, hour, day, month, day_of_week = parts
-                
+
                 scheduler.add_job(
                     reset_monthly_quotas,
                     trigger=CronTrigger(
@@ -84,11 +83,11 @@ def setup_scheduler() -> AsyncIOScheduler:
                         day=day,
                         month=month,
                         day_of_week=day_of_week,
-                        timezone='UTC'
+                        timezone="UTC",
                     ),
-                    id='reset_monthly_quotas',
-                    name='重置月度配额',
-                    replace_existing=True
+                    id="reset_monthly_quotas",
+                    name="重置月度配额",
+                    replace_existing=True,
                 )
                 logger.info(f"已添加配额重置任务: {cron_expr}")
             else:
@@ -96,39 +95,30 @@ def setup_scheduler() -> AsyncIOScheduler:
                 # 使用默认配置：每月1日凌晨0点
                 scheduler.add_job(
                     reset_monthly_quotas,
-                    trigger=CronTrigger(
-                        minute=0,
-                        hour=0,
-                        day=1,
-                        timezone='UTC'
-                    ),
-                    id='reset_monthly_quotas',
-                    name='重置月度配额',
-                    replace_existing=True
+                    trigger=CronTrigger(minute=0, hour=0, day=1, timezone="UTC"),
+                    id="reset_monthly_quotas",
+                    name="重置月度配额",
+                    replace_existing=True,
                 )
                 logger.info("已添加配额重置任务: 每月1日凌晨0点")
         except Exception as e:
             logger.error(f"添加配额重置任务失败: {str(e)}")
-        
+
         # 添加清理任务（每天凌晨2点）
         try:
             scheduler.add_job(
                 run_all_cleanup_tasks,
-                trigger=CronTrigger(
-                    minute=0,
-                    hour=2,
-                    timezone='UTC'
-                ),
-                id='run_all_cleanup_tasks',
-                name='运行所有清理任务',
-                replace_existing=True
+                trigger=CronTrigger(minute=0, hour=2, timezone="UTC"),
+                id="run_all_cleanup_tasks",
+                name="运行所有清理任务",
+                replace_existing=True,
             )
             logger.info("已添加清理任务: 每天凌晨2点")
         except Exception as e:
             logger.error(f"添加清理任务失败: {str(e)}")
     else:
         logger.info("定时任务调度器已禁用")
-    
+
     return scheduler
 
 
@@ -136,38 +126,44 @@ def setup_scheduler() -> AsyncIOScheduler:
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """
     应用生命周期管理
-    
+
     启动时:
         - 初始化数据库表
         - 初始化Redis连接
         - 初始化向量数据库
         - 启动定时任务调度器
         - 记录启动日志
-    
+
     关闭时:
         - 关闭定时任务调度器
         - 关闭Redis连接
         - 关闭数据库连接
         - 记录关闭日志
-    
+
     需求引用:
         - 需求10.5: 应用启动和关闭事件管理
-    
+
     Args:
         app: FastAPI应用实例
-    
+
     Yields:
         None
     """
     global scheduler
-    
+
     # 启动时执行
     logger.info("=" * 60)
     logger.info(f"启动 {settings.app.app_name} v{settings.app.app_version}")
     logger.info(f"环境: {settings.app.environment}")
     logger.info(f"调试模式: {settings.app.debug}")
     logger.info("=" * 60)
-    
+
+    config_ok = settings.validate_all()
+    if not config_ok:
+        if settings.app.environment in ("staging", "production"):
+            raise RuntimeError("配置验证失败，应用启动中止")
+        logger.warning("配置验证失败，部分功能可能不可用")
+
     # 初始化数据库表（如果需要）
     try:
         # 注意：在生产环境中应该使用Alembic进行数据库迁移
@@ -178,32 +174,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             logger.info("数据库表检查完成")
     except Exception as e:
         logger.error(f"数据库初始化失败: {str(e)}")
-    
+
     # 初始化Redis连接
     try:
         from app.core.redis import ping_redis
+
         if ping_redis():
             logger.info("Redis连接成功")
         else:
             logger.warning("Redis连接失败，某些功能可能不可用")
     except Exception as e:
         logger.error(f"Redis初始化失败: {str(e)}")
-    
+
     # 初始化向量数据库
     try:
         from app.core.vector_store import get_vector_store_manager
+
         vector_manager = get_vector_store_manager()
         logger.info(f"向量数据库初始化成功: {vector_manager.persist_directory}")
     except Exception as e:
         logger.error(f"向量数据库初始化失败: {str(e)}")
-    
+
     # 启动定时任务调度器
     if settings.background_task.enable_scheduler:
         try:
             scheduler = setup_scheduler()
             scheduler.start()
             logger.info("定时任务调度器已启动")
-            
+
             # 打印已注册的任务
             jobs = scheduler.get_jobs()
             if jobs:
@@ -218,16 +216,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             scheduler = None
     else:
         logger.info("定时任务调度器已禁用（通过配置）")
-    
+
     logger.info("应用启动完成")
     logger.info("=" * 60)
-    
+
     yield
-    
+
     # 关闭时执行
     logger.info("=" * 60)
     logger.info("正在关闭应用...")
-    
+
     # 关闭定时任务调度器
     if scheduler and scheduler.running:
         try:
@@ -235,25 +233,80 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             logger.info("定时任务调度器已关闭")
         except Exception as e:
             logger.error(f"关闭定时任务调度器失败: {str(e)}")
-    
+
     # 关闭Redis连接
     try:
         from app.core.redis import close_redis
+
         close_redis()
         logger.info("Redis连接已关闭")
     except Exception as e:
         logger.error(f"关闭Redis连接失败: {str(e)}")
-    
+
     # 关闭数据库连接
     try:
         from app.core.database import close_db
+
         close_db()
         logger.info("数据库连接已关闭")
     except Exception as e:
         logger.error(f"关闭数据库连接失败: {str(e)}")
-    
+
     logger.info("应用已关闭")
     logger.info("=" * 60)
+
+
+def _extract_bearer_token(request: Request) -> str:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token
+
+
+def _require_admin_user(request: Request, db: Session) -> None:
+    from app.core.security import verify_access_token
+    from app.repositories.user_repository import UserRepository
+
+    token = _extract_bearer_token(request)
+    payload = verify_access_token(token)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌无效或已过期",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        user_id = int(payload["sub"])
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌格式无效",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_id(user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌无效或已过期",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限"
+        )
 
 
 # 创建FastAPI应用实例
@@ -364,10 +417,10 @@ Authorization: Bearer <access_token>
                     "example": {
                         "error_code": "2001",
                         "message": "参数验证失败",
-                        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
                     }
                 }
-            }
+            },
         },
         401: {
             "description": "未授权 - JWT令牌无效或已过期",
@@ -376,10 +429,10 @@ Authorization: Bearer <access_token>
                     "example": {
                         "error_code": "1002",
                         "message": "令牌已过期",
-                        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
                     }
                 }
-            }
+            },
         },
         403: {
             "description": "禁止访问 - 配额不足或权限不足",
@@ -388,10 +441,10 @@ Authorization: Bearer <access_token>
                     "example": {
                         "error_code": "4001",
                         "message": "配额已用尽",
-                        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
                     }
                 }
-            }
+            },
         },
         404: {
             "description": "资源不存在",
@@ -400,10 +453,10 @@ Authorization: Bearer <access_token>
                     "example": {
                         "error_code": "2001",
                         "message": "对话不存在",
-                        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
                     }
                 }
-            }
+            },
         },
         429: {
             "description": "请求过于频繁 - 超出速率限制",
@@ -411,10 +464,10 @@ Authorization: Bearer <access_token>
                 "application/json": {
                     "example": {
                         "error": "Rate limit exceeded",
-                        "message": "请求过于频繁，请稍后再试"
+                        "message": "请求过于频繁，请稍后再试",
                     }
                 }
-            }
+            },
         },
         500: {
             "description": "服务器内部错误",
@@ -423,12 +476,12 @@ Authorization: Bearer <access_token>
                     "example": {
                         "error_code": "3001",
                         "message": "数据库连接失败",
-                        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
                     }
                 }
-            }
+            },
         },
-    }
+    },
 )
 
 # 配置CORS中间件
@@ -451,11 +504,11 @@ register_exception_handlers(app)
 
 # 配置速率限制
 register_rate_limiter(app)
-app.add_middleware(SlowAPIMiddleware)
 
 
 # 注册API路由
 from app.api.v1 import api_router
+
 app.include_router(api_router)
 
 
@@ -463,9 +516,9 @@ app.include_router(api_router)
 async def root():
     """
     API根路径
-    
+
     返回API基本信息和可用端点链接。
-    
+
     Returns:
         dict: API基本信息
     """
@@ -483,7 +536,7 @@ async def root():
             "scheduler_jobs": "/scheduler/jobs",
             "api_docs": "/docs",
             "api_redoc": "/redoc",
-        }
+        },
     }
 
 
@@ -491,12 +544,12 @@ async def root():
 async def health_check():
     """
     健康检查端点
-    
+
     检查应用运行状态和各组件健康状况。
-    
+
     Returns:
         dict: 健康状态信息，包括应用状态、调度器状态等
-        
+
     Example:
         ```json
         {
@@ -509,13 +562,16 @@ async def health_check():
         }
         ```
     """
+    if settings.app.environment == "production":
+        return {"status": "healthy"}
+
     health_status = {
         "status": "healthy",
         "app_name": settings.app.app_name,
         "version": settings.app.app_version,
-        "environment": settings.app.environment
+        "environment": settings.app.environment,
     }
-    
+
     # 检查调度器状态
     if settings.background_task.enable_scheduler:
         if scheduler and scheduler.running:
@@ -526,20 +582,20 @@ async def health_check():
             health_status["scheduled_jobs"] = 0
     else:
         health_status["scheduler"] = "disabled"
-    
+
     return health_status
 
 
 @app.get("/scheduler/jobs", tags=["监控"])
-async def list_scheduled_jobs():
+async def list_scheduled_jobs(request: Request, db: Session = Depends(get_db)):
     """
     列出所有定时任务
-    
+
     显示系统中配置的所有定时任务及其执行状态。
-    
+
     Returns:
         dict: 定时任务列表，包括任务ID、名称、下次执行时间等
-        
+
     Example:
         ```json
         {
@@ -557,48 +613,46 @@ async def list_scheduled_jobs():
         }
         ```
     """
+    if settings.app.environment in ("staging", "production"):
+        _require_admin_user(request, db)
+
     if not settings.background_task.enable_scheduler:
-        return {
-            "enabled": False,
-            "message": "定时任务调度器已禁用"
-        }
-    
+        return {"enabled": False, "message": "定时任务调度器已禁用"}
+
     if not scheduler or not scheduler.running:
-        return {
-            "enabled": True,
-            "running": False,
-            "message": "定时任务调度器未运行"
-        }
-    
+        return {"enabled": True, "running": False, "message": "定时任务调度器未运行"}
+
     jobs = scheduler.get_jobs()
     job_list = []
-    
+
     for job in jobs:
         job_info = {
             "id": job.id,
             "name": job.name,
-            "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
-            "trigger": str(job.trigger)
+            "next_run_time": job.next_run_time.isoformat()
+            if job.next_run_time
+            else None,
+            "trigger": str(job.trigger),
         }
         job_list.append(job_info)
-    
+
     return {
         "enabled": True,
         "running": True,
         "job_count": len(job_list),
-        "jobs": job_list
+        "jobs": job_list,
     }
 
 
 @app.get("/metrics", tags=["监控"])
-async def metrics():
+async def metrics(request: Request, db: Session = Depends(get_db)):
     """
     Prometheus监控指标端点
-    
+
     返回Prometheus格式的监控指标，用于系统监控和告警。
-    
+
     **可用指标:**
-    
+
     * `http_requests_total` - HTTP请求总数（按方法、路径、状态码分组）
     * `http_request_duration_seconds` - HTTP请求时长分布
     * `http_requests_active` - 当前活跃的HTTP请求数
@@ -606,37 +660,38 @@ async def metrics():
     * `llm_tokens_total` - LLM token使用总量（按类型分组）
     * `db_connections_active` - 数据库活跃连接数
     * `redis_connection_status` - Redis连接状态
-    
+
     需求引用:
         - 需求8.1: 提供监控指标接口
-    
+
     Returns:
         Response: Prometheus格式的指标数据（text/plain格式）
-        
+
     Example:
         ```
         # HELP http_requests_total Total HTTP requests
         # TYPE http_requests_total counter
         http_requests_total{method="GET",path="/api/v1/conversations",status="200"} 1523.0
-        
+
         # HELP http_request_duration_seconds HTTP request duration
         # TYPE http_request_duration_seconds histogram
         http_request_duration_seconds_bucket{le="0.1"} 1234.0
         ```
     """
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
+    if not settings.monitoring.enable_metrics:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    if settings.app.environment in ("staging", "production"):
+        _require_admin_user(request, db)
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host=settings.app.host,
         port=settings.app.port,
         reload=settings.app.debug,
-        log_level=settings.logging.log_level.lower()
+        log_level=settings.logging.log_level.lower(),
     )

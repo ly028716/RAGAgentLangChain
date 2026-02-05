@@ -1,0 +1,120 @@
+<svg width="1200" height="900" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="900" fill="#F5F7FA"/>
+
+  <!-- Page Title -->
+  <text x="60" y="50" font-family="Arial" font-size="24" font-weight="bold" fill="#303133">Agent 工具管理</text>
+
+  <!-- Main Dialog Container -->
+  <rect x="300" y="120" width="600" height="700" rx="8" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1" filter="url(#shadow)"/>
+
+  <!-- Dialog Header -->
+  <rect x="300" y="120" width="600" height="60" rx="8" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="330" y="157" font-family="Arial" font-size="18" font-weight="bold" fill="#303133">创建自定义工具</text>
+  <circle cx="870" cy="150" r="12" fill="#F5F7FA" stroke="#DCDFE6" stroke-width="1"/>
+  <line x1="865" y1="145" x2="875" y2="155" stroke="#909399" stroke-width="2"/>
+  <line x1="875" y1="145" x2="865" y2="155" stroke="#909399" stroke-width="2"/>
+
+  <!-- Info Alert Box -->
+  <rect x="330" y="200" width="540" height="100" rx="4" fill="#ECF5FF" stroke="#B3D8FF" stroke-width="1"/>
+  <circle cx="350" cy="230" r="12" fill="#409EFF"/>
+  <text x="345" y="235" font-family="Arial" font-size="16" font-weight="bold" fill="#FFFFFF">i</text>
+
+  <text x="375" y="225" font-family="Arial" font-size="14" font-weight="600" fill="#409EFF">什么是 Agent 工具?</text>
+  <text x="375" y="250" font-family="Arial" font-size="12" fill="#606266">Agent 工具是 AI 助手可以调用的功能模块,用于扩展 AI 的能力。例如:</text>
+  <text x="375" y="270" font-family="Arial" font-size="12" fill="#606266">查询天气、搜索信息、执行计算等。创建自定义工具可以让 AI 助手</text>
+  <text x="375" y="290" font-family="Arial" font-size="12" fill="#606266">根据您的需求执行特定任务。</text>
+
+  <!-- Form Section -->
+  <!-- Name Field -->
+  <text x="330" y="340" font-family="Arial" font-size="14" fill="#606266">
+    <tspan fill="#F56C6C">*</tspan> 名称
+  </text>
+  <rect x="410" y="325" width="460" height="36" rx="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="420" y="348" font-family="Arial" font-size="13" fill="#C0C4CC">例如: weather_query, data_analyzer</text>
+
+  <!-- Help Text for Name -->
+  <text x="410" y="375" font-family="Arial" font-size="11" fill="#909399">工具的唯一标识符,建议使用英文和下划线,如: my_custom_tool</text>
+
+  <!-- Description Field -->
+  <text x="330" y="420" font-family="Arial" font-size="14" fill="#606266">
+    <tspan fill="#F56C6C">*</tspan> 描述
+  </text>
+  <rect x="410" y="405" width="460" height="80" rx="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="420" y="425" font-family="Arial" font-size="12" fill="#C0C4CC">详细描述工具的功能和用途,AI 会根据这个描述</text>
+  <text x="420" y="442" font-family="Arial" font-size="12" fill="#C0C4CC">决定何时使用该工具</text>
+
+  <!-- Help Text for Description -->
+  <text x="410" y="500" font-family="Arial" font-size="11" fill="#909399">清晰的描述能帮助 AI 更准确地理解和使用工具。例如:"用于查询指定</text>
+  <text x="410" y="515" font-family="Arial" font-size="11" fill="#909399">城市的实时天气信息"</text>
+
+  <!-- Config Field -->
+  <text x="330" y="555" font-family="Arial" font-size="14" fill="#606266">配置</text>
+  <rect x="410" y="540" width="460" height="120" rx="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="420" y="560" font-family="Consolas, monospace" font-size="11" fill="#909399">{</text>
+  <text x="420" y="578" font-family="Consolas, monospace" font-size="11" fill="#C0C4CC">  "api_key": "your_key",</text>
+  <text x="420" y="596" font-family="Consolas, monospace" font-size="11" fill="#C0C4CC">  "endpoint": "https://api.example.com"</text>
+  <text x="420" y="614" font-family="Consolas, monospace" font-size="11" fill="#909399">}</text>
+
+  <!-- Help Text for Config -->
+  <rect x="410" y="670" width="460" height="90" rx="4" fill="#FAFAFA"/>
+  <text x="420" y="688" font-family="Arial" font-size="11" fill="#606266">JSON 格式的配置参数,用于存储工具所需的设置信息。</text>
+  <text x="420" y="708" font-family="Arial" font-size="10" font-weight="600" fill="#909399">示例:</text>
+  <text x="420" y="723" font-family="Arial" font-size="10" fill="#909399">• API 密钥: </text>
+  <text x="480" y="723" font-family="Consolas, monospace" font-size="10" fill="#409EFF">{"api_key": "sk-xxx"}</text>
+  <text x="420" y="738" font-family="Arial" font-size="10" fill="#909399">• 接口地址: </text>
+  <text x="480" y="738" font-family="Consolas, monospace" font-size="10" fill="#409EFF">{"endpoint": "https://...", "timeout": 30}</text>
+  <text x="420" y="753" font-family="Arial" font-size="10" fill="#909399">• 自定义参数: </text>
+  <text x="495" y="753" font-family="Consolas, monospace" font-size="10" fill="#409EFF">{"max_results": 10, "language": "zh-CN"}</text>
+
+  <!-- Dialog Footer -->
+  <line x1="300" y1="780" x2="900" y2="780" stroke="#EBEEF5" stroke-width="1"/>
+
+  <!-- Cancel Button -->
+  <rect x="710" y="790" width="70" height="32" rx="4" fill="#FFFFFF" stroke="#DCDFE6" stroke-width="1"/>
+  <text x="730" y="811" font-family="Arial" font-size="14" fill="#606266">取消</text>
+
+  <!-- Create Button -->
+  <rect x="790" y="790" width="80" height="32" rx="4" fill="#409EFF"/>
+  <text x="810" y="811" font-family="Arial" font-size="14" fill="#FFFFFF">创建</text>
+
+  <!-- Shadow Filter Definition -->
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Annotations -->
+  <g opacity="0.7">
+    <!-- Arrow pointing to info box -->
+    <line x1="950" y1="250" x2="880" y2="250" stroke="#E6A23C" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="960" y="245" font-family="Arial" font-size="12" fill="#E6A23C" font-weight="600">功能说明区</text>
+    <text x="960" y="260" font-family="Arial" font-size="10" fill="#909399">解释工具的概念</text>
+
+    <!-- Arrow pointing to help text -->
+    <line x1="950" y1="375" x2="880" y2="375" stroke="#67C23A" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="960" y="370" font-family="Arial" font-size="12" fill="#67C23A" font-weight="600">字段帮助文本</text>
+    <text x="960" y="385" font-family="Arial" font-size="10" fill="#909399">提供填写指导</text>
+
+    <!-- Arrow pointing to config examples -->
+    <line x1="250" y1="710" x2="400" y2="710" stroke="#409EFF" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="60" y="705" font-family="Arial" font-size="12" fill="#409EFF" font-weight="600">配置示例</text>
+    <text x="60" y="720" font-family="Arial" font-size="10" fill="#909399">展示常见配置格式</text>
+  </g>
+
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#E6A23C"/>
+    </marker>
+  </defs>
+</svg>

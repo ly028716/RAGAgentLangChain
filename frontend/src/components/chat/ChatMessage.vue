@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, RefreshRight, MagicStick } from '@element-plus/icons-vue'
+import { CopyDocument, RefreshRight, MagicStick, Document } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import type { Message } from '@/types'
@@ -63,6 +63,21 @@ function handleRegenerate() {
         <MarkdownRenderer v-if="!isUser" :content="message.content" />
         <p v-else>{{ message.content }}</p>
         <span v-if="isStreaming" class="cursor">▊</span>
+
+        <!-- 引用源展示 -->
+        <div v-if="message.sources && message.sources.length > 0" class="sources-container">
+          <div class="sources-title">
+            <el-icon><Document /></el-icon>
+            <span>参考资料</span>
+          </div>
+          <div class="sources-list">
+            <div v-for="(source, index) in message.sources" :key="index" class="source-item">
+              <span class="source-index">[{{ index + 1 }}]</span>
+              <span class="source-name">{{ source.document_name }}</span>
+              <span class="source-score">({{ (source.similarity_score * 100).toFixed(0) }}%)</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="message-actions" v-if="!isStreaming">
@@ -167,5 +182,44 @@ function handleRegenerate() {
 
 .chat-message:hover .message-actions {
   opacity: 1;
+}
+
+.sources-container {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-size: 12px;
+
+  .sources-title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: $text-secondary;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .sources-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .source-item {
+    color: $text-regular;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    
+    .source-index {
+      color: $primary-color;
+      font-weight: 500;
+    }
+
+    .source-score {
+      color: $text-secondary;
+      font-size: 11px;
+    }
+  }
 }
 </style>

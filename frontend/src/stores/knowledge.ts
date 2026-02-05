@@ -15,16 +15,44 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
   const error = ref<string | null>(null)
   const documentsError = ref<string | null>(null)
 
+  // Pagination State
+  const kbPagination = ref({ page: 1, pageSize: 20 })
+  const docPagination = ref({ page: 1, pageSize: 20 })
+  const documentsKbId = ref<number | null>(null)
+  const documentsFetchSeq = ref(0)
+
   // Getters
   const hasKnowledgeBases = computed(() => knowledgeBases.value.length > 0)
   const hasError = computed(() => error.value !== null)
 
+  async function waitForDocumentTerminalStatus(documentId: number, timeoutMs = 60_000, intervalMs = 1_500) {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      const status = await knowledgeApi.getDocumentStatus(documentId)
+      const index = documents.value.findIndex(d => d.id === documentId)
+      if (index !== -1) {
+        documents.value[index] = {
+          ...documents.value[index],
+          status: status.status as Document['status'],
+          chunk_count: status.chunk_count,
+          error_message: status.error_message
+        }
+      }
+      if (status.status === 'completed' || status.status === 'failed') {
+        return status
+      }
+      await new Promise(resolve => setTimeout(resolve, intervalMs))
+    }
+    return null
+  }
+
   // Actions
-  async function fetchKnowledgeBases(skip = 0, limit = 20) {
+  async function fetchKnowledgeBases() {
     loading.value = true
     error.value = null
     try {
-      const res = await knowledgeApi.getList(skip, limit)
+      const skip = (kbPagination.value.page - 1) * kbPagination.value.pageSize
+      const res = await knowledgeApi.getList(skip, kbPagination.value.pageSize)
       knowledgeBases.value = res.items
       total.value = res.total
     } catch (e: any) {
@@ -50,7 +78,13 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
 
   async function createKnowledgeBase(data: KnowledgeBaseCreate) {
     const kb = await knowledgeApi.create(data)
-    knowledgeBases.value.unshift(kb)
+    // If on first page, prepend
+    if (kbPagination.value.page === 1) {
+      knowledgeBases.value.unshift(kb)
+      if (knowledgeBases.value.length > kbPagination.value.pageSize) {
+        knowledgeBases.value.pop()
+      }
+    }
     total.value++
     return kb
   }
@@ -74,28 +108,49 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     if (currentKnowledgeBase.value?.id === id) {
       currentKnowledgeBase.value = null
     }
+    // Refresh if list becomes empty but total > 0 (handle pagination hole)
+    if (knowledgeBases.value.length === 0 && total.value > 0) {
+      if (kbPagination.value.page > 1) {
+        kbPagination.value.page--
+      }
+      fetchKnowledgeBases()
+    }
   }
 
-  async function fetchDocuments(kbId: number, skip = 0, limit = 20) {
+  async function fetchDocuments(kbId: number) {
+    if (documentsKbId.value !== kbId) {
+      documentsKbId.value = kbId
+      documents.value = []
+      documentsTotal.value = 0
+      documentsError.value = null
+      docPagination.value = { ...docPagination.value, page: 1 }
+    }
+
+    const seq = ++documentsFetchSeq.value
     documentsLoading.value = true
     documentsError.value = null
     try {
-      const res = await knowledgeApi.getDocuments(kbId, skip, limit)
+      const skip = (docPagination.value.page - 1) * docPagination.value.pageSize
+      const res = await knowledgeApi.getDocuments(kbId, skip, docPagination.value.pageSize)
+      if (seq !== documentsFetchSeq.value || documentsKbId.value !== kbId) return
       documents.value = res.items
       documentsTotal.value = res.total
     } catch (e: any) {
+      if (seq !== documentsFetchSeq.value || documentsKbId.value !== kbId) return
       documentsError.value = e.response?.data?.detail || '加载文档列表失败'
       throw e
     } finally {
+      if (seq !== documentsFetchSeq.value || documentsKbId.value !== kbId) return
       documentsLoading.value = false
     }
   }
 
   async function uploadDocument(kbId: number, file: File) {
     const doc = await knowledgeApi.uploadDocument(kbId, file)
-    // 刷新文档列表
+    // Refresh documents list
     await fetchDocuments(kbId)
-    // 更新知识库文档数量
+    await waitForDocumentTerminalStatus(doc.id)
+    // Update KB document count
     const kb = knowledgeBases.value.find(k => k.id === kbId)
     if (kb) {
       kb.document_count++
@@ -108,9 +163,9 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
 
   async function uploadDocuments(kbId: number, files: File[]) {
     const result = await knowledgeApi.uploadDocuments(kbId, files)
-    // 刷新文档列表
+    // Refresh documents list
     await fetchDocuments(kbId)
-    // 更新知识库文档数量
+    // Update KB document count
     const successCount = result.documents.length
     const kb = knowledgeBases.value.find(k => k.id === kbId)
     if (kb) {
@@ -126,7 +181,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     await knowledgeApi.deleteDocument(docId)
     documents.value = documents.value.filter(d => d.id !== docId)
     documentsTotal.value--
-    // 更新知识库文档数量
+    // Update KB document count
     const kb = knowledgeBases.value.find(k => k.id === kbId)
     if (kb) {
       kb.document_count--
@@ -134,6 +189,35 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     if (currentKnowledgeBase.value?.id === kbId) {
       currentKnowledgeBase.value.document_count--
     }
+    // Refresh if empty to fill page
+    if (documents.value.length === 0 && documentsTotal.value > 0) {
+      if (docPagination.value.page > 1) {
+        docPagination.value.page--
+      }
+      fetchDocuments(kbId)
+    }
+  }
+
+  async function downloadDocument(docId: number, filename: string) {
+    const blob = await knowledgeApi.downloadDocument(docId)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  }
+
+  async function retryDocument(docId: number) {
+    const doc = await knowledgeApi.retryDocument(docId)
+    const index = documents.value.findIndex(d => d.id === docId)
+    if (index !== -1) {
+      documents.value[index] = doc
+    }
+    await waitForDocumentTerminalStatus(docId)
+    return doc
   }
 
   function clearCurrentKnowledgeBase() {
@@ -141,6 +225,9 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     documents.value = []
     documentsTotal.value = 0
     documentsError.value = null
+    docPagination.value = { page: 1, pageSize: 20 }
+    documentsKbId.value = null
+    documentsFetchSeq.value = 0
   }
 
   function clearError() {
@@ -158,6 +245,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     documentsLoading,
     error,
     documentsError,
+    kbPagination,
+    docPagination,
     hasKnowledgeBases,
     hasError,
     fetchKnowledgeBases,
@@ -169,6 +258,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     uploadDocument,
     uploadDocuments,
     deleteDocument,
+    downloadDocument,
+    retryDocument,
     clearCurrentKnowledgeBase,
     clearError
   }

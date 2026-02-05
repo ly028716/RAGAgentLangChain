@@ -33,7 +33,7 @@ class TestConversationAPI:
         mock_message = {
             'id': 1,
             'conversation_id': 1,
-            'role': 'USER',
+            'role': 'user',
             'content': '你好',
             'tokens': 10,
             'created_at': '2026-01-01T00:00:00Z'
@@ -44,7 +44,7 @@ class TestConversationAPI:
 
     def test_message_roles(self):
         """测试消息角色类型"""
-        valid_roles = ['USER', 'ASSISTANT', 'SYSTEM']
+        valid_roles = ['user', 'assistant', 'system']
 
         for role in valid_roles:
             assert role in valid_roles

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Delete, Edit, Document, Upload, FolderOpened, Share } from '@element-plus/icons-vue'
+import { Plus, Search, Delete, Edit, Document, Upload, FolderOpened, Share, View, Download, RefreshRight } from '@element-plus/icons-vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import ShareDialog from '@/components/knowledge/ShareDialog.vue'
 import type { KnowledgeBase, KnowledgeBaseCreate, Document as DocType } from '@/types'
-import type { UploadProps, UploadRawFile } from 'element-plus'
+import type { UploadProps, UploadRawFile, UploadRequestOptions } from 'element-plus'
+import { knowledgeApi } from '@/api/knowledge'
 
 import RAGQueryPanel from '@/components/knowledge/RAGQueryPanel.vue'
 import { APP_CONSTANTS, parseApiError } from '@/utils/constants'
@@ -21,14 +22,15 @@ const createForm = ref<KnowledgeBaseCreate>({ name: '', description: '', categor
 const editingKb = ref<KnowledgeBase | null>(null)
 const uploading = ref(false)
 
-// 计算属性
+// 预览状态
+const previewVisible = ref(false)
+const previewContent = ref('')
+const previewTitle = ref('')
+const previewLoading = ref(false)
+
+// 计算属性 - 移除前端过滤，搜索应由后端处理（TODO: 后端搜索API接入）
 const filteredKnowledgeBases = computed(() => {
-  if (!searchQuery.value) return knowledgeStore.knowledgeBases
-  const query = searchQuery.value.toLowerCase()
-  return knowledgeStore.knowledgeBases.filter(kb => 
-    kb.name.toLowerCase().includes(query) || 
-    kb.description?.toLowerCase().includes(query)
-  )
+  return knowledgeStore.knowledgeBases
 })
 
 // 方法
@@ -90,6 +92,19 @@ function handleViewDetail(kb: KnowledgeBase) {
   showDetailDrawer.value = true
 }
 
+// 分页处理
+function handleKbPageChange(page: number) {
+  knowledgeStore.kbPagination.page = page
+  knowledgeStore.fetchKnowledgeBases()
+}
+
+function handleDocPageChange(page: number) {
+  knowledgeStore.docPagination.page = page
+  if (knowledgeStore.currentKnowledgeBase) {
+    knowledgeStore.fetchDocuments(knowledgeStore.currentKnowledgeBase.id)
+  }
+}
+
 // 文件上传前验证
 const beforeUpload: UploadProps['beforeUpload'] = (rawFile: UploadRawFile) => {
   // 检查文件大小
@@ -108,25 +123,19 @@ const beforeUpload: UploadProps['beforeUpload'] = (rawFile: UploadRawFile) => {
   return true
 }
 
-// 处理文件上传
-async function handleUpload(file: UploadRawFile) {
-  if (!knowledgeStore.currentKnowledgeBase) return false
+// 自定义上传
+async function customUpload(options: UploadRequestOptions) {
+  if (!knowledgeStore.currentKnowledgeBase) return
   
-  // 验证文件
-  if (!beforeUpload(file)) {
-    return false
-  }
-  
-  uploading.value = true
   try {
-    await knowledgeStore.uploadDocument(knowledgeStore.currentKnowledgeBase.id, file)
-    ElMessage.success('上传成功')
+    const response = await knowledgeStore.uploadDocument(knowledgeStore.currentKnowledgeBase.id, options.file as File)
+    // Notify element-plus upload component of success
+    options.onSuccess(response)
   } catch (error: any) {
+    options.onError(error)
     ElMessage.error(parseApiError(error, '上传失败'))
-  } finally {
-    uploading.value = false
+    throw error
   }
-  return false
 }
 
 async function handleDeleteDocument(docId: number) {
@@ -140,6 +149,41 @@ async function handleDeleteDocument(docId: number) {
     if (error !== 'cancel') {
       ElMessage.error(parseApiError(error, '删除失败'))
     }
+  }
+}
+
+// 文档操作
+async function handlePreview(doc: DocType) {
+  previewTitle.value = doc.filename
+  previewVisible.value = true
+  previewLoading.value = true
+  previewContent.value = ''
+  
+  try {
+    const res = await knowledgeApi.getDocumentPreview(doc.id)
+    previewContent.value = res.content || '暂无内容预览'
+  } catch (error: any) {
+    previewContent.value = '无法加载预览内容: ' + parseApiError(error)
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+async function handleDownload(doc: DocType) {
+  try {
+    await knowledgeStore.downloadDocument(doc.id, doc.filename)
+    ElMessage.success('开始下载')
+  } catch (error: any) {
+    ElMessage.error(parseApiError(error, '下载失败'))
+  }
+}
+
+async function handleRetry(doc: DocType) {
+  try {
+    await knowledgeStore.retryDocument(doc.id)
+    ElMessage.success('已提交重试')
+  } catch (error: any) {
+    ElMessage.error(parseApiError(error, '重试失败'))
   }
 }
 
@@ -207,45 +251,59 @@ onMounted(() => {
     </div>
 
     <!-- 知识库列表 -->
-    <div class="kb-list" v-loading="knowledgeStore.loading">
-      <template v-if="filteredKnowledgeBases.length > 0">
-        <div 
-          v-for="kb in filteredKnowledgeBases" 
-          :key="kb.id" 
-          class="kb-card"
-          @click="handleViewDetail(kb)"
-        >
-          <div class="kb-icon">
-            <el-icon :size="32"><FolderOpened /></el-icon>
-          </div>
-          <div class="kb-info">
-            <h3 class="kb-name">{{ kb.name }}</h3>
-            <p class="kb-desc">{{ kb.description || '暂无描述' }}</p>
-            <div class="kb-meta">
-              <span class="doc-count">
-                <el-icon><Document /></el-icon>
-                {{ kb.document_count }} 个文档
-              </span>
-              <span class="category" v-if="kb.category">
-                <el-tag size="small">{{ kb.category }}</el-tag>
-              </span>
+    <div class="kb-container" v-loading="knowledgeStore.loading">
+      <div class="kb-list">
+        <template v-if="filteredKnowledgeBases.length > 0">
+          <div 
+            v-for="kb in filteredKnowledgeBases" 
+            :key="kb.id" 
+            class="kb-card"
+            @click="handleViewDetail(kb)"
+          >
+            <div class="kb-icon">
+              <el-icon :size="32"><FolderOpened /></el-icon>
+            </div>
+            <div class="kb-info">
+              <h3 class="kb-name">{{ kb.name }}</h3>
+              <p class="kb-desc">{{ kb.description || '暂无描述' }}</p>
+              <div class="kb-meta">
+                <span class="doc-count">
+                  <el-icon><Document /></el-icon>
+                  {{ kb.document_count }} 个文档
+                </span>
+                <span class="category" v-if="kb.category">
+                  <el-tag size="small">{{ kb.category }}</el-tag>
+                </span>
+              </div>
+            </div>
+            <div class="kb-actions" @click.stop>
+              <el-button text :icon="Upload" type="primary" @click="handleViewDetail(kb)" title="上传文档">上传</el-button>
+              <el-button text :icon="Edit" @click="handleEdit(kb)" title="编辑" />
+              <el-button text :icon="Delete" type="danger" @click="handleDelete(kb)" title="删除" />
             </div>
           </div>
-          <div class="kb-actions" @click.stop>
-            <el-button text :icon="Edit" @click="handleEdit(kb)" />
-            <el-button text :icon="Delete" type="danger" @click="handleDelete(kb)" />
-          </div>
+        </template>
+        
+        <!-- 空状态 -->
+        <div v-else class="empty-state">
+          <el-icon :size="64" color="#c0c4cc"><FolderOpened /></el-icon>
+          <h3>暂无知识库</h3>
+          <p>创建您的第一个知识库，开始管理文档</p>
+          <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">
+            创建知识库
+          </el-button>
         </div>
-      </template>
+      </div>
       
-      <!-- 空状态 -->
-      <div v-else class="empty-state">
-        <el-icon :size="64" color="#c0c4cc"><FolderOpened /></el-icon>
-        <h3>暂无知识库</h3>
-        <p>创建您的第一个知识库，开始管理文档</p>
-        <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">
-          创建知识库
-        </el-button>
+      <!-- 知识库分页 -->
+      <div class="pagination-container" v-if="knowledgeStore.total > 0">
+        <el-pagination
+          v-model:current-page="knowledgeStore.kbPagination.page"
+          v-model:page-size="knowledgeStore.kbPagination.pageSize"
+          :total="knowledgeStore.total"
+          layout="total, prev, pager, next"
+          @current-change="handleKbPageChange"
+        />
       </div>
     </div>
 
@@ -311,25 +369,19 @@ onMounted(() => {
           <!-- 文档上传 -->
           <div class="upload-section">
             <el-upload
-              :auto-upload="false"
+              :auto-upload="true"
+              :http-request="customUpload"
               :before-upload="beforeUpload"
-              :on-change="(uploadFile: any) => handleUpload(uploadFile.raw)"
-              :show-file-list="false"
-              :disabled="uploading"
-              accept=".pdf,.doc,.docx,.txt,.md"
+              :show-file-list="true"
+              accept=".pdf,.docx,.txt,.md"
               drag
+              multiple
             >
               <el-icon :size="40"><Upload /></el-icon>
               <div class="upload-text">
                 <p>拖拽文件到此处，或点击上传</p>
                 <p class="upload-hint">支持 PDF、Word、TXT、Markdown 格式，最大 10MB</p>
               </div>
-              <template v-if="uploading">
-                <div class="uploading-mask">
-                  <el-icon class="is-loading"><Upload /></el-icon>
-                  <span>上传中...</span>
-                </div>
-              </template>
             </el-upload>
           </div>
 
@@ -348,31 +400,89 @@ onMounted(() => {
                       {{ formatFileSize(doc.file_size) }} · {{ doc.chunk_count }} 个分块
                     </span>
                   </div>
-                  <el-tag :type="getStatusType(doc.status)" size="small">
+                  <el-tooltip v-if="doc.status === 'failed' && doc.error_message" :content="doc.error_message" placement="top">
+                    <el-tag :type="getStatusType(doc.status)" size="small">
+                      {{ getStatusText(doc.status) }}
+                    </el-tag>
+                  </el-tooltip>
+                  <el-tag v-else :type="getStatusType(doc.status)" size="small">
                     {{ getStatusText(doc.status) }}
                   </el-tag>
-                  <el-button 
-                    text 
-                    :icon="Delete" 
-                    type="danger" 
-                    @click="handleDeleteDocument(doc.id)"
-                  />
+                  <div class="doc-actions">
+                    <!-- 预览 -->
+                    <el-button 
+                      link 
+                      :icon="View" 
+                      type="primary"
+                      @click="handlePreview(doc)"
+                      title="预览"
+                    />
+                    <!-- 下载 -->
+                    <el-button 
+                      link 
+                      :icon="Download" 
+                      type="primary"
+                      @click="handleDownload(doc)"
+                      title="下载"
+                    />
+                    <!-- 重试 (仅失败时) -->
+                    <el-button 
+                      v-if="doc.status === 'failed'"
+                      link 
+                      :icon="RefreshRight" 
+                      type="warning"
+                      @click="handleRetry(doc)"
+                      title="重试"
+                    />
+                    <!-- 删除 -->
+                    <el-button 
+                      link 
+                      :icon="Delete" 
+                      type="danger" 
+                      @click="handleDeleteDocument(doc.id)"
+                      title="删除"
+                    />
+                  </div>
                 </div>
               </template>
               <div v-else class="no-docs">
                 <p>暂无文档，请上传文档</p>
               </div>
             </div>
+            
+            <!-- 文档分页 -->
+            <div class="pagination-container" v-if="knowledgeStore.documentsTotal > 0">
+              <el-pagination
+                v-model:current-page="knowledgeStore.docPagination.page"
+                v-model:page-size="knowledgeStore.docPagination.pageSize"
+                :total="knowledgeStore.documentsTotal"
+                layout="prev, pager, next"
+                small
+                @current-change="handleDocPageChange"
+              />
+            </div>
           </div>
 
           <!-- RAG 测试区域 -->
           <div class="rag-test-section">
             <h4>知识库问答测试</h4>
-            <RAGQueryPanel :knowledge-base-id="knowledgeStore.currentKnowledgeBase.id" />
+            <RAGQueryPanel :knowledge-base-id="knowledgeStore.currentKnowledgeBase.id" :knowledge-bases="[knowledgeStore.currentKnowledgeBase]" />
           </div>
         </div>
       </template>
     </el-drawer>
+
+    <!-- 预览对话框 -->
+    <el-dialog
+      v-model="previewVisible"
+      :title="previewTitle"
+      width="600px"
+      append-to-body
+    >
+      <div class="preview-content" v-loading="previewLoading">
+        <pre>{{ previewContent }}</pre>
+      </div>
+    </el-dialog>
 
     <!-- 分享对话框 -->
     <ShareDialog
@@ -402,6 +512,13 @@ onMounted(() => {
   }
 }
 
+.kb-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .kb-list {
   flex: 1;
   overflow-y: auto;
@@ -409,6 +526,7 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
   align-content: start;
+  padding-bottom: 20px;
 }
 
 .kb-card {
@@ -499,6 +617,13 @@ onMounted(() => {
   }
 }
 
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+
 .drawer-content {
   display: flex;
   flex-direction: column;
@@ -586,6 +711,12 @@ onMounted(() => {
         color: var(--el-text-color-secondary);
       }
     }
+    
+    .doc-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
   }
 
   .no-docs {
@@ -599,6 +730,21 @@ onMounted(() => {
   h4 {
     margin: 0 0 12px;
     font-size: 14px;
+  }
+}
+
+.preview-content {
+  max-height: 400px;
+  overflow-y: auto;
+  
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-all;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
   }
 }
 </style>

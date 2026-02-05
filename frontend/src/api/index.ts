@@ -33,6 +33,9 @@ instance.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    if (config.data instanceof FormData && config.headers) {
+      delete (config.headers as any)['Content-Type']
+    }
     return config
   },
   (error) => Promise.reject(error)
@@ -44,7 +47,8 @@ instance.interceptors.response.use(
     return response.data
   },
   async (error) => {
-    const { response, config } = error
+    const response = error?.response
+    const config = error?.config
     
     if (response) {
       switch (response.status) {
@@ -62,6 +66,7 @@ instance.interceptors.response.use(
                 storage.setToken(access_token)
                 storage.setRefreshToken(newRefreshToken)
                 onTokenRefreshed(access_token)
+                config.headers = config.headers || {}
                 config.headers.Authorization = `Bearer ${access_token}`
                 return instance(config)
               } catch {
@@ -75,6 +80,7 @@ instance.interceptors.response.use(
               // 等待 Token 刷新完成
               return new Promise(resolve => {
                 subscribeTokenRefresh(token => {
+                  config.headers = config.headers || {}
                   config.headers.Authorization = `Bearer ${token}`
                   resolve(instance(config))
                 })

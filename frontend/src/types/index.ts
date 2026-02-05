@@ -20,6 +20,7 @@ export interface TokenResponse {
 export interface UserInfo {
   id: number
   username: string
+  full_name?: string
   email?: string
   avatar?: string
   created_at: string
@@ -43,6 +44,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system'
   content: string
   tokens?: number
+  rag_used?: boolean
+  sources?: DocumentChunk[]
   created_at: string
 }
 
@@ -50,12 +53,24 @@ export interface ChatRequest {
   conversation_id?: number | null
   content: string
   config?: ChatConfig
+  rag?: ChatRagConfig
 }
 
 export interface ChatConfig {
   temperature?: number
   max_tokens?: number
   system_prompt_id?: number | null
+  knowledge_base_ids?: number[]
+}
+
+export type RAGStrategy = 'rag_only' | 'rag_prefer' | 'llm_only'
+
+export interface ChatRagConfig {
+  enabled?: boolean
+  knowledge_base_ids?: number[]
+  strategy?: RAGStrategy
+  top_k?: number
+  score_threshold?: number | null
 }
 
 // 知识库相关类型

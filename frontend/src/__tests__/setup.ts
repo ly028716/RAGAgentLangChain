@@ -1,7 +1,7 @@
 /**
  * Vitest 测试环境配置
  */
-import { vi } from 'vitest'
+import { vi, beforeEach } from 'vitest'
 import { config } from '@vue/test-utils'
 
 // Mock localStorage
